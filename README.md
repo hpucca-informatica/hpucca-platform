@@ -54,6 +54,13 @@ composer install
 php -S localhost:8000 -t public
 ```
 
+## Docker
+
+```bash
+docker build -t hpucca-platform .
+docker run --rm -p 8080:80 hpucca-platform
+```
+
 ## Health Check
 
 ```http
