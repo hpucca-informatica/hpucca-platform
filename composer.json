@@ -1,0 +1,20 @@
+{
+    "name": "hpucca/platform",
+    "description": "HPucca Platform - PHP 8.3 event-oriented automation platform base.",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": "^8.3"
+    },
+    "autoload": {
+        "psr-4": {
+            "HPucca\\Platform\\": "app/"
+        }
+    },
+    "scripts": {
+        "check-style": "php -l public/index.php"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
