@@ -8,7 +8,11 @@ WORKDIR /var/www/html
 
 COPY . .
 
-RUN composer install --no-dev --optimize-autoloader \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpq-dev \
+    && docker-php-ext-install pdo_pgsql \
+    && rm -rf /var/lib/apt/lists/* \
+    && composer install --no-dev --optimize-autoloader \
     && sed -ri 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/000-default.conf /etc/apache2/apache2.conf \
     && printf '%s\n' 'ServerName localhost' > /etc/apache2/conf-available/servername.conf \
     && printf '%s\n' '<Directory /var/www/html/public>' '    AllowOverride All' '    Require all granted' '</Directory>' > /etc/apache2/conf-available/hpucca-platform.conf \
