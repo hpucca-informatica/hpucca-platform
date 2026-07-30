@@ -7,6 +7,7 @@ use HPucca\Platform\Core\Response;
 use HPucca\Platform\Core\Router;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
+require dirname(__DIR__) . '/bootstrap/app.php';
 
 try {
     $request = Request::fromGlobals();
