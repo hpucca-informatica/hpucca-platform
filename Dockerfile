@@ -9,7 +9,7 @@ WORKDIR /var/www/html
 COPY . .
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libpq-dev \
+    && apt-get install -y --no-install-recommends libpq-dev unzip \
     && docker-php-ext-install pdo_pgsql \
     && rm -rf /var/lib/apt/lists/* \
     && composer install --no-dev --optimize-autoloader \
