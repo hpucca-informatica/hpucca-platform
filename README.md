@@ -2,7 +2,7 @@
 
 HPucca Platform is a PHP 8.3 modular base for an event-oriented automation platform.
 
-This stage contains a minimal HTTP foundation, environment configuration, PostgreSQL connectivity, health endpoints, and a migration runner. It does not include business rules, authentication, users, permissions, event dispatching, event bus logic, Redis, n8n, integrations, or complete multi-tenant behavior.
+This stage contains a minimal HTTP foundation, environment configuration, PostgreSQL connectivity, health endpoints, a migration runner, and the first authentication foundation. It does not include business rules, permissions, event dispatching, event bus logic, Redis, n8n, integrations, or complete multi-tenant behavior.
 
 ## Requirements
 
@@ -16,6 +16,8 @@ This stage contains a minimal HTTP foundation, environment configuration, Postgr
 app/
   Controllers/
     HealthController.php
+    AuthController.php
+    DashboardController.php
   Core/
     Config.php
     Database.php
@@ -23,9 +25,17 @@ app/
     Response.php
     Router.php
   Services/
+    AuthService.php
+    PublicCodeGenerator.php
+    UserService.php
   Repositories/
+    TenantRepository.php
+    UserRepository.php
   Models/
+    Tenant.php
+    User.php
   Middleware/
+    AuthMiddleware.php
   Events/
   Dispatcher/
   Integrations/
@@ -39,6 +49,7 @@ config/
 database/
   migrations/
     001_create_tenants.sql
+    002_create_users.sql
   seeds/
 docs/
 public/
@@ -50,6 +61,9 @@ storage/
   logs/
   uploads/
 tests/
+views/
+  login.php
+  dashboard.php
 ```
 
 ## Install
@@ -160,3 +174,24 @@ Returns HTTP 503 when unavailable:
 ```
 
 No health response exposes credentials, DSN values, stack traces, or internal connection messages.
+
+## Authentication Foundation
+
+Sprint 3 uses PHP sessions and authenticates with:
+
+- tenant/company slug;
+- user login;
+- password.
+
+E-mail is optional contact data only. It is not a login credential. Login is unique inside each tenant, and e-mail, when present, is also unique inside each tenant.
+
+Users keep the internal `id BIGSERIAL` and also receive an immutable public code such as `USR000001`. User codes are generated from a PostgreSQL sequence (`users_code_seq`), avoiding `MAX(code)` race conditions. The `PublicCodeGenerator` service keeps the formatting reusable for future prefixes such as `TEN`, `CLI`, `LED`, `AGD`, `IMO`, `ATD`, and `FIN`, but those entities are not implemented yet.
+
+Initial user categories are `owner`, `admin`, `manager`, and `user`. The `type` field is only an initial classification and does not replace the future roles and permissions system.
+
+```http
+GET /login
+POST /login
+POST /logout
+GET /dashboard
+```
