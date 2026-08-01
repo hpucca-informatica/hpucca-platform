@@ -7,7 +7,7 @@ namespace HPucca\Platform\Core;
 final readonly class Response
 {
     public function __construct(
-        private array $data,
+        private string $content,
         private int $statusCode = 200,
         private array $headers = [],
     ) {
@@ -15,8 +15,22 @@ final readonly class Response
 
     public static function json(array $data, int $statusCode = 200): self
     {
-        return new self($data, $statusCode, [
+        return new self(json_encode($data, JSON_THROW_ON_ERROR), $statusCode, [
             'Content-Type' => 'application/json; charset=utf-8',
+        ]);
+    }
+
+    public static function html(string $content, int $statusCode = 200): self
+    {
+        return new self($content, $statusCode, [
+            'Content-Type' => 'text/html; charset=utf-8',
+        ]);
+    }
+
+    public static function redirect(string $location, int $statusCode = 302): self
+    {
+        return new self('', $statusCode, [
+            'Location' => $location,
         ]);
     }
 
@@ -28,6 +42,6 @@ final readonly class Response
             header(sprintf('%s: %s', $name, $value));
         }
 
-        echo json_encode($this->data, JSON_THROW_ON_ERROR);
+        echo $this->content;
     }
 }

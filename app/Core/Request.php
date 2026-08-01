@@ -29,4 +29,15 @@ final readonly class Request
     {
         return $this->path;
     }
+
+    public function input(string $key, string $default = '', bool $trim = true): string
+    {
+        $value = $_POST[$key] ?? $default;
+
+        if (!is_string($value)) {
+            return $default;
+        }
+
+        return $trim ? trim($value) : $value;
+    }
 }
