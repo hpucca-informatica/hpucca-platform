@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
-use HPucca\Platform\Controllers\CompanyController;
 use HPucca\Platform\Core\Response;
 use HPucca\Platform\Core\View;
 use HPucca\Platform\Middleware\AuthMiddleware;
+use HPucca\Platform\Middleware\OwnerMiddleware;
 use HPucca\Platform\Services\AuthService;
+use HPucca\Platform\Services\CsrfService;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -75,6 +76,7 @@ $html = View::admin('placeholders/module.php', [
 $body = responseBody($html);
 
 assert(str_contains($body, 'aria-current="page"'));
+assert(str_contains($body, CsrfService::FIELD));
 assert(str_contains($body, 'Empresas'));
 assert(str_contains($body, 'Usuario Operador'));
 assert(str_contains($body, 'Empresa A'));
@@ -82,13 +84,24 @@ assert(!str_contains($body, 'password_hash'));
 assert(!str_contains($body, 'secret'));
 assert(!str_contains($body, 'senha-hash'));
 
-$companyPage = responseBody((new CompanyController())->index());
-assert(str_contains($companyPage, 'O cadastro de empresas sera implementado nas proximas etapas.'));
+$ownerAccess = (new OwnerMiddleware())->handle(static fn (): Response => Response::html('owner'));
+assert(responseStatus($ownerAccess) === 200);
+
+$_SESSION['type'] = 'user';
+$blockedOwnerAccess = (new OwnerMiddleware())->handle(static fn (): Response => Response::html('owner'));
+assert(responseStatus($blockedOwnerAccess) === 403);
 
 $routes = (string) file_get_contents(dirname(__DIR__) . '/routes/api.php');
 assert(str_contains($routes, "\$router->post('/logout'"));
 assert(!str_contains($routes, "\$router->get('/logout'"));
 assert(str_contains($routes, "\$router->get('/admin/companies'"));
+assert(str_contains($routes, "\$router->get('/admin/companies/create'"));
+assert(str_contains($routes, "\$router->post('/admin/companies'"));
+assert(str_contains($routes, "\$router->get('/admin/companies/{id}'"));
+assert(str_contains($routes, "\$router->get('/admin/companies/{id}/edit'"));
+assert(str_contains($routes, "\$router->post('/admin/companies/{id}'"));
+assert(str_contains($routes, "\$router->post('/admin/companies/{id}/activate'"));
+assert(str_contains($routes, "\$router->post('/admin/companies/{id}/deactivate'"));
 assert(str_contains($routes, "\$router->get('/admin/users'"));
 assert(str_contains($routes, "\$router->get('/profile'"));
 assert(str_contains($routes, "\$router->get('/change-password'"));

@@ -13,6 +13,7 @@ final readonly class PublicCodeGenerator
      * @var array<string, string>
      */
     private const SEQUENCES = [
+        'TEN' => 'tenants_code_seq',
         'USR' => 'users_code_seq',
     ];
 

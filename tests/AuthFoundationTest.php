@@ -24,6 +24,7 @@ function connection(): PDO
     $connection->exec(
         "CREATE TABLE tenants (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code VARCHAR(20) NOT NULL UNIQUE,
             name VARCHAR(150) NOT NULL,
             slug VARCHAR(150) NOT NULL UNIQUE,
             status VARCHAR(20) NOT NULL DEFAULT 'active',
@@ -57,8 +58,14 @@ function connection(): PDO
 
 function insertTenant(PDO $connection, string $name, string $slug, string $status = 'active'): int
 {
-    $statement = $connection->prepare('INSERT INTO tenants (name, slug, status) VALUES (:name, :slug, :status)');
+    static $sequence = 0;
+
+    $sequence++;
+    $statement = $connection->prepare(
+        'INSERT INTO tenants (code, name, slug, status) VALUES (:code, :name, :slug, :status)'
+    );
     $statement->execute([
+        'code' => PublicCodeGenerator::format('TEN', $sequence),
         'name' => $name,
         'slug' => $slug,
         'status' => $status,

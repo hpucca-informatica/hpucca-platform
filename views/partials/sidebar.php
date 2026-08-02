@@ -40,6 +40,7 @@ $menu = [
         <?php endforeach; ?>
     </nav>
     <form class="sidebar-logout" method="post" action="/logout">
+        <?= $csrfField ?? '' ?>
         <button type="submit">Sair</button>
     </form>
 </aside>
