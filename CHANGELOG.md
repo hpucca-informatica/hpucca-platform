@@ -8,6 +8,15 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), e este
 
 ### Adicionado
 
+- CRUD administrativo de empresas usando a tabela `tenants`.
+- Listagem, busca, paginacao, cadastro, edicao, detalhe, ativacao e inativacao de empresas.
+- Migration `003_add_tenant_code.sql` com codigo publico de tenant no formato `TEN000001`.
+- Sequence PostgreSQL `tenants_code_seq` para geracao segura de codigos publicos de empresas.
+- Trigger PostgreSQL para impedir alteracao direta de `tenants.code`.
+- `CompanyRepository`, `CompanyService` e contrato de repositorio para testes.
+- `OwnerMiddleware` provisório para restringir administracao de empresas a usuarios `owner`.
+- `CsrfService` reutilizavel para formularios POST administrativos e logout.
+- `FlashService` reutilizavel para mensagens de interface.
 - Layout administrativo reutilizavel para paginas autenticadas.
 - Menu lateral com Dashboard, Cadastros e Sistema.
 - Cabecalho administrativo com usuario e empresa autenticados.
@@ -29,6 +38,9 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), e este
 
 ### Decisoes
 
+- Inativacao substitui exclusao fisica de empresas.
+- A protecao `owner` e provisoria e nao substitui roles e permissions futuros.
+- Com multiplos tenants ja existentes, a atribuicao inicial de `TEN000001`, `TEN000002` etc. nao possui ordem de negocio deterministica; no ambiente atual ha apenas um tenant, entao HPucca Informatica recebera `TEN000001`.
 - E-mail e opcional e usado apenas para contato, notificacoes e futura recuperacao de senha.
 - Login e unico por tenant, nao global.
 - E-mail, quando informado, e unico por tenant.

@@ -31,9 +31,14 @@ app/
     View.php
   Services/
     AuthService.php
+    CompanyService.php
+    CsrfService.php
+    FlashService.php
     PublicCodeGenerator.php
     UserService.php
   Repositories/
+    CompanyRepository.php
+    CompanyRepositoryContract.php
     TenantRepository.php
     UserRepository.php
   Models/
@@ -41,6 +46,7 @@ app/
     User.php
   Middleware/
     AuthMiddleware.php
+    OwnerMiddleware.php
   Events/
   Dispatcher/
   Integrations/
@@ -55,6 +61,7 @@ database/
   migrations/
     001_create_tenants.sql
     002_create_users.sql
+    003_add_tenant_code.sql
   seeds/
 docs/
 public/
@@ -80,6 +87,12 @@ views/
     flash.php
   placeholders/
     module.php
+  companies/
+    index.php
+    create.php
+    _form.php
+    edit.php
+    show.php
   login.php
   dashboard.php
 ```
@@ -229,4 +242,31 @@ GET /profile
 GET /change-password
 ```
 
-These pages do not implement CRUD, profile editing, or password changes yet.
+User, profile, and password pages do not implement CRUD, profile editing, or password changes yet.
+
+## Administrative Company CRUD
+
+Sprint 4.2 adds the administrative CRUD foundation for companies using the existing `tenants` table. There is no physical delete; companies can be activated or deactivated.
+
+Routes:
+
+```http
+GET /admin/companies
+GET /admin/companies/create
+POST /admin/companies
+GET /admin/companies/{id}
+GET /admin/companies/{id}/edit
+POST /admin/companies/{id}
+POST /admin/companies/{id}/activate
+POST /admin/companies/{id}/deactivate
+```
+
+All company routes are private and require the provisional authenticated user category `owner`. This is not the final permissions model.
+
+Migration `003_add_tenant_code.sql` adds immutable public company codes in the format `TEN000001` using the PostgreSQL sequence `tenants_code_seq`. Existing tenants are populated during the migration, and future inserts can use the database default or the `PublicCodeGenerator` service.
+
+Known migration note: when multiple tenants already exist, the initial assignment of tenant codes follows PostgreSQL update processing order and is not intended to encode business priority. In the current environment there is only one existing tenant, so HPucca Informatica receives `TEN000001`.
+
+All POST administrative forms include a reusable CSRF token. Logout remains POST-only and is also protected by CSRF.
+
+Sprint 4.2 intentionally does not add user CRUD, roles, permissions, audit logs, billing, profile editing, password changes, or business modules.
