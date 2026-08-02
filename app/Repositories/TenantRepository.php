@@ -17,7 +17,7 @@ final readonly class TenantRepository
     public function findById(int $id): ?Tenant
     {
         $statement = $this->connection->prepare(
-            'SELECT id, name, slug, status, created_at, updated_at FROM tenants WHERE id = :id LIMIT 1'
+            'SELECT id, code, name, slug, status, created_at, updated_at FROM tenants WHERE id = :id LIMIT 1'
         );
         $statement->execute([
             'id' => $id,
@@ -35,7 +35,7 @@ final readonly class TenantRepository
     public function findActiveById(int $id): ?Tenant
     {
         $statement = $this->connection->prepare(
-            'SELECT id, name, slug, status, created_at, updated_at
+            'SELECT id, code, name, slug, status, created_at, updated_at
              FROM tenants
              WHERE id = :id AND status = :status
              LIMIT 1'
@@ -57,7 +57,7 @@ final readonly class TenantRepository
     public function findActiveBySlug(string $slug): ?Tenant
     {
         $statement = $this->connection->prepare(
-            'SELECT id, name, slug, status, created_at, updated_at
+            'SELECT id, code, name, slug, status, created_at, updated_at
              FROM tenants
              WHERE slug = :slug AND status = :status
              LIMIT 1'
@@ -83,6 +83,7 @@ final readonly class TenantRepository
     {
         return new Tenant(
             (int) $row['id'],
+            (string) $row['code'],
             (string) $row['name'],
             (string) $row['slug'],
             (string) $row['status'],
