@@ -279,6 +279,7 @@ main:focus-visible {
 }
 
 .toolbar-form input,
+.toolbar-form select,
 .entity-form input,
 .entity-form select {
     min-height: 40px;

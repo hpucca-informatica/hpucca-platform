@@ -120,18 +120,104 @@ $router->post('/admin/companies/{id}/deactivate', static function (Request $requ
 
 $router->get('/admin/users', static function (Request $request): Response {
     return (new AuthMiddleware(new AuthService()))->handle(
-        static fn (): Response => (new UserController())->index()
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new UserController(new Database(Config::get('database'))))->index($request)
+        )
+    );
+});
+
+$router->get('/admin/users/create', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new UserController(new Database(Config::get('database'))))->create()
+        )
+    );
+});
+
+$router->post('/admin/users', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new UserController(new Database(Config::get('database'))))->store($request)
+        )
+    );
+});
+
+$router->get('/admin/users/{id}', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new UserController(new Database(Config::get('database'))))->show($request)
+        )
+    );
+});
+
+$router->get('/admin/users/{id}/edit', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new UserController(new Database(Config::get('database'))))->edit($request)
+        )
+    );
+});
+
+$router->post('/admin/users/{id}', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new UserController(new Database(Config::get('database'))))->update($request)
+        )
+    );
+});
+
+$router->post('/admin/users/{id}/activate', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new UserController(new Database(Config::get('database'))))->activate($request)
+        )
+    );
+});
+
+$router->post('/admin/users/{id}/deactivate', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new UserController(new Database(Config::get('database'))))->deactivate($request)
+        )
+    );
+});
+
+$router->get('/admin/users/{id}/reset-password', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new UserController(new Database(Config::get('database'))))->showResetPassword($request)
+        )
+    );
+});
+
+$router->post('/admin/users/{id}/reset-password', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new UserController(new Database(Config::get('database'))))->resetPassword($request)
+        )
     );
 });
 
 $router->get('/profile', static function (Request $request): Response {
     return (new AuthMiddleware(new AuthService()))->handle(
-        static fn (): Response => (new ProfileController())->show()
+        static fn (): Response => (new ProfileController(new Database(Config::get('database'))))->show()
+    );
+});
+
+$router->post('/profile', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new ProfileController(new Database(Config::get('database'))))->update($request)
     );
 });
 
 $router->get('/change-password', static function (Request $request): Response {
     return (new AuthMiddleware(new AuthService()))->handle(
-        static fn (): Response => (new PasswordController())->show()
+        static fn (): Response => (new PasswordController(new Database(Config::get('database'))))->show()
+    );
+});
+
+$router->post('/change-password', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new PasswordController(new Database(Config::get('database'))))->update($request)
     );
 });

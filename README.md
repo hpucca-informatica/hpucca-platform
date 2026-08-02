@@ -39,6 +39,7 @@ app/
   Repositories/
     CompanyRepository.php
     CompanyRepositoryContract.php
+    UserRepositoryContract.php
     TenantRepository.php
     UserRepository.php
   Models/
@@ -93,6 +94,17 @@ views/
     _form.php
     edit.php
     show.php
+  users/
+    index.php
+    create.php
+    _form.php
+    edit.php
+    show.php
+    reset-password.php
+  profile/
+    show.php
+  password/
+    change.php
   login.php
   dashboard.php
 ```
@@ -270,3 +282,46 @@ Known migration note: when multiple tenants already exist, the initial assignmen
 All POST administrative forms include a reusable CSRF token. Logout remains POST-only and is also protected by CSRF.
 
 Sprint 4.2 intentionally does not add user CRUD, roles, permissions, audit logs, billing, profile editing, password changes, or business modules.
+
+## Administrative User CRUD
+
+Sprint 4.3 adds the administrative CRUD foundation for users using the existing `users` table. There is no physical delete; users can be activated or deactivated.
+
+Administrative user routes:
+
+```http
+GET /admin/users
+GET /admin/users/create
+POST /admin/users
+GET /admin/users/{id}
+GET /admin/users/{id}/edit
+POST /admin/users/{id}
+POST /admin/users/{id}/activate
+POST /admin/users/{id}/deactivate
+GET /admin/users/{id}/reset-password
+POST /admin/users/{id}/reset-password
+```
+
+All administrative user routes are private and require the provisional authenticated user category `owner`. This is not the final roles and permissions model.
+
+User login and e-mail uniqueness are scoped to the tenant. E-mail remains optional. Passwords are stored only through `password_hash(PASSWORD_DEFAULT)`, and list/detail views never expose password hashes.
+
+Protection rules:
+
+- the current owner cannot inactivate their own user through the CRUD;
+- an active tenant must keep at least one active owner;
+- the last active owner of a tenant cannot be inactivated or demoted;
+- users from inactive tenants cannot be activated.
+
+Self-service routes:
+
+```http
+GET /profile
+POST /profile
+GET /change-password
+POST /change-password
+```
+
+The profile page allows the authenticated user to update only `name` and `email`. The change-password page validates the current password with `password_verify()`, requires a new password with at least 10 characters, and regenerates the session after success.
+
+Sprint 4.3 intentionally does not add physical deletion, password recovery by e-mail, e-mail sending, 2FA, OAuth, JWT, persisted sessions, audit logs, full roles and permissions, or business modules.
