@@ -15,7 +15,9 @@ use HPucca\Platform\Core\Request;
 use HPucca\Platform\Core\Response;
 use HPucca\Platform\Core\Router;
 use HPucca\Platform\Middleware\AuthMiddleware;
+use HPucca\Platform\Middleware\OwnerMiddleware;
 use HPucca\Platform\Services\AuthService;
+use HPucca\Platform\Services\CsrfService;
 
 /** @var Router $router */
 $router->get('/api/v1/health', static function (Request $request): Response {
@@ -36,7 +38,13 @@ $router->post('/login', static function (Request $request): Response {
 
 $router->post('/logout', static function (Request $request): Response {
     return (new AuthMiddleware(new AuthService()))->handle(
-        static fn (): Response => (new AuthController(new Database(Config::get('database'))))->logout()
+        static function () use ($request): Response {
+            if (!CsrfService::validate($request->input(CsrfService::FIELD, '', false))) {
+                return Response::redirect('/dashboard');
+            }
+
+            return (new AuthController(new Database(Config::get('database'))))->logout();
+        }
     );
 });
 
@@ -48,7 +56,65 @@ $router->get('/dashboard', static function (Request $request): Response {
 
 $router->get('/admin/companies', static function (Request $request): Response {
     return (new AuthMiddleware(new AuthService()))->handle(
-        static fn (): Response => (new CompanyController())->index()
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new CompanyController(new Database(Config::get('database'))))->index($request)
+        )
+    );
+});
+
+$router->get('/admin/companies/create', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new CompanyController(new Database(Config::get('database'))))->create()
+        )
+    );
+});
+
+$router->post('/admin/companies', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new CompanyController(new Database(Config::get('database'))))->store($request)
+        )
+    );
+});
+
+$router->get('/admin/companies/{id}', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new CompanyController(new Database(Config::get('database'))))->show($request)
+        )
+    );
+});
+
+$router->get('/admin/companies/{id}/edit', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new CompanyController(new Database(Config::get('database'))))->edit($request)
+        )
+    );
+});
+
+$router->post('/admin/companies/{id}', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new CompanyController(new Database(Config::get('database'))))->update($request)
+        )
+    );
+});
+
+$router->post('/admin/companies/{id}/activate', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new CompanyController(new Database(Config::get('database'))))->activate($request)
+        )
+    );
+});
+
+$router->post('/admin/companies/{id}/deactivate', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new CompanyController(new Database(Config::get('database'))))->deactivate($request)
+        )
     );
 });
 

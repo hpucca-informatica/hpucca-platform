@@ -9,6 +9,7 @@ final readonly class Request
     public function __construct(
         private string $method,
         private string $path,
+        private array $params = [],
     ) {
     }
 
@@ -39,5 +40,38 @@ final readonly class Request
         }
 
         return $trim ? trim($value) : $value;
+    }
+
+    public function query(string $key, string $default = ''): string
+    {
+        $value = $_GET[$key] ?? $default;
+
+        if (!is_string($value)) {
+            return $default;
+        }
+
+        return trim($value);
+    }
+
+    public function integerQuery(string $key, int $default = 1): int
+    {
+        $value = filter_var($_GET[$key] ?? null, FILTER_VALIDATE_INT);
+
+        return $value === false || $value === null ? $default : max(1, $value);
+    }
+
+    public function param(string $key): ?string
+    {
+        $value = $this->params[$key] ?? null;
+
+        return is_string($value) ? $value : null;
+    }
+
+    /**
+     * @param array<string, string> $params
+     */
+    public function withParams(array $params): self
+    {
+        return new self($this->method, $this->path, $params);
     }
 }

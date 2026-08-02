@@ -34,6 +34,11 @@ final readonly class Response
         ]);
     }
 
+    public function withStatus(int $statusCode): self
+    {
+        return new self($this->content, $statusCode, $this->headers);
+    }
+
     public function send(): void
     {
         http_response_code($this->statusCode);

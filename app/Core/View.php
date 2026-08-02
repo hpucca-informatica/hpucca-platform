@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace HPucca\Platform\Core;
 
+use HPucca\Platform\Services\CsrfService;
+use HPucca\Platform\Services\FlashService;
+
 final class View
 {
     /**
@@ -30,6 +33,8 @@ final class View
         $content = self::render($view, $data);
         $layoutData = array_merge($data, [
             'content' => $content,
+            'csrfField' => CsrfService::field(),
+            'flash' => FlashService::consume(),
         ]);
 
         return Response::html(self::render('layouts/admin.php', $layoutData));
