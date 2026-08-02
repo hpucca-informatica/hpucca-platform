@@ -77,6 +77,18 @@ final readonly class TenantRepository
     }
 
     /**
+     * @return Tenant[]
+     */
+    public function all(): array
+    {
+        $statement = $this->connection->query(
+            'SELECT id, code, name, slug, status, created_at, updated_at FROM tenants ORDER BY name ASC'
+        );
+
+        return array_map(fn (array $row): Tenant => $this->map($row), $statement->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    /**
      * @param array<string, mixed> $row
      */
     private function map(array $row): Tenant
