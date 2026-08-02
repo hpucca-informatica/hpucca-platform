@@ -145,6 +145,28 @@ final readonly class AuthService
         ];
     }
 
+    public static function refreshSessionUser(User $user, ?Tenant $tenant = null): void
+    {
+        self::ensureStaticSessionStarted();
+
+        $_SESSION[self::SESSION_USER_ID] = $user->id;
+        $_SESSION[self::SESSION_USER_CODE] = $user->code;
+        $_SESSION[self::SESSION_LOGIN] = $user->login;
+        $_SESSION[self::SESSION_NAME] = $user->name;
+        $_SESSION[self::SESSION_TYPE] = $user->type;
+
+        if ($tenant instanceof Tenant) {
+            $_SESSION[self::SESSION_TENANT_ID] = $tenant->id;
+            $_SESSION[self::SESSION_TENANT_NAME] = $tenant->name;
+        }
+    }
+
+    public static function regenerateSession(): void
+    {
+        self::ensureStaticSessionStarted();
+        session_regenerate_id(true);
+    }
+
     private function ensureSessionStarted(): void
     {
         self::ensureStaticSessionStarted();
