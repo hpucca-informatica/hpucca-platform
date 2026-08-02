@@ -14,6 +14,7 @@ final readonly class AuthService
     private const SESSION_USER_ID = 'user_id';
     private const SESSION_USER_CODE = 'user_code';
     private const SESSION_TENANT_ID = 'tenant_id';
+    private const SESSION_TENANT_NAME = 'tenant_name';
     private const SESSION_LOGIN = 'login';
     private const SESSION_NAME = 'name';
     private const SESSION_TYPE = 'type';
@@ -48,6 +49,7 @@ final readonly class AuthService
         $_SESSION[self::SESSION_USER_ID] = $user->id;
         $_SESSION[self::SESSION_USER_CODE] = $user->code;
         $_SESSION[self::SESSION_TENANT_ID] = $tenant->id;
+        $_SESSION[self::SESSION_TENANT_NAME] = $tenant->name;
         $_SESSION[self::SESSION_LOGIN] = $user->login;
         $_SESSION[self::SESSION_NAME] = $user->name;
         $_SESSION[self::SESSION_TYPE] = $user->type;
@@ -114,7 +116,41 @@ final readonly class AuthService
         return $tenantId;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public static function sessionUser(): array
+    {
+        self::ensureStaticSessionStarted();
+
+        return [
+            'id' => $_SESSION[self::SESSION_USER_ID] ?? null,
+            'code' => $_SESSION[self::SESSION_USER_CODE] ?? '',
+            'login' => $_SESSION[self::SESSION_LOGIN] ?? '',
+            'name' => $_SESSION[self::SESSION_NAME] ?? '',
+            'type' => $_SESSION[self::SESSION_TYPE] ?? '',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function sessionTenant(): array
+    {
+        self::ensureStaticSessionStarted();
+
+        return [
+            'id' => $_SESSION[self::SESSION_TENANT_ID] ?? null,
+            'name' => $_SESSION[self::SESSION_TENANT_NAME] ?? '',
+        ];
+    }
+
     private function ensureSessionStarted(): void
+    {
+        self::ensureStaticSessionStarted();
+    }
+
+    private static function ensureStaticSessionStarted(): void
     {
         if (session_status() === PHP_SESSION_NONE) {
             session_start();

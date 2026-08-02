@@ -8,6 +8,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), e este
 
 ### Adicionado
 
+- Layout administrativo reutilizavel para paginas autenticadas.
+- Menu lateral com Dashboard, Cadastros e Sistema.
+- Cabecalho administrativo com usuario e empresa autenticados.
+- Dashboard reorganizado em cards e acesso rapido.
+- Paginas placeholder protegidas para empresas, usuarios, perfil e alteracao de senha.
+- CSS e JavaScript administrativos leves, sem dependencia de CDN.
 - Fundacao de autenticacao por sessao PHP.
 - Autenticacao por tenant, login e senha.
 - Migration `002_create_users.sql` com `users`.

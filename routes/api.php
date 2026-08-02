@@ -2,9 +2,13 @@
 
 declare(strict_types=1);
 
-use HPucca\Platform\Controllers\HealthController;
 use HPucca\Platform\Controllers\AuthController;
+use HPucca\Platform\Controllers\CompanyController;
 use HPucca\Platform\Controllers\DashboardController;
+use HPucca\Platform\Controllers\HealthController;
+use HPucca\Platform\Controllers\PasswordController;
+use HPucca\Platform\Controllers\ProfileController;
+use HPucca\Platform\Controllers\UserController;
 use HPucca\Platform\Core\Config;
 use HPucca\Platform\Core\Database;
 use HPucca\Platform\Core\Request;
@@ -39,5 +43,29 @@ $router->post('/logout', static function (Request $request): Response {
 $router->get('/dashboard', static function (Request $request): Response {
     return (new AuthMiddleware(new AuthService()))->handle(
         static fn (): Response => (new DashboardController(new Database(Config::get('database'))))->index()
+    );
+});
+
+$router->get('/admin/companies', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new CompanyController())->index()
+    );
+});
+
+$router->get('/admin/users', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new UserController())->index()
+    );
+});
+
+$router->get('/profile', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new ProfileController())->show()
+    );
+});
+
+$router->get('/change-password', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new PasswordController())->show()
     );
 });
