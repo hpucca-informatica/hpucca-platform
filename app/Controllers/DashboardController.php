@@ -7,6 +7,7 @@ namespace HPucca\Platform\Controllers;
 use HPucca\Platform\Core\Config;
 use HPucca\Platform\Core\Database;
 use HPucca\Platform\Core\Response;
+use HPucca\Platform\Core\View;
 use HPucca\Platform\Repositories\TenantRepository;
 use HPucca\Platform\Repositories\UserRepository;
 use HPucca\Platform\Services\AuthService;
@@ -41,25 +42,14 @@ final readonly class DashboardController
             return Response::redirect('/login');
         }
 
-        return $this->render('dashboard.php', [
+        return View::admin('dashboard.php', [
+            'title' => 'Dashboard',
+            'activeMenu' => 'dashboard',
+            'breadcrumbs' => ['Dashboard' => null],
             'user' => $user,
             'tenant' => $tenant,
             'version' => Config::get('app.version'),
             'databaseStatus' => $this->database->isConnected() ? 'connected' : 'unavailable',
         ]);
-    }
-
-    /**
-     * @param array<string, mixed> $data
-     */
-    private function render(string $view, array $data = []): Response
-    {
-        extract($data, EXTR_SKIP);
-
-        ob_start();
-        require dirname(__DIR__, 2) . '/views/' . $view;
-        $content = ob_get_clean();
-
-        return Response::html($content === false ? '' : $content);
     }
 }
