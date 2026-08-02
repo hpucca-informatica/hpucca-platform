@@ -18,12 +18,17 @@ app/
     HealthController.php
     AuthController.php
     DashboardController.php
+    CompanyController.php
+    UserController.php
+    ProfileController.php
+    PasswordController.php
   Core/
     Config.php
     Database.php
     Request.php
     Response.php
     Router.php
+    View.php
   Services/
     AuthService.php
     PublicCodeGenerator.php
@@ -54,6 +59,11 @@ database/
 docs/
 public/
   index.php
+  assets/
+    css/
+      admin.css
+    js/
+      admin.js
 routes/
   api.php
 storage/
@@ -62,6 +72,14 @@ storage/
   uploads/
 tests/
 views/
+  layouts/
+    admin.php
+  partials/
+    sidebar.php
+    header.php
+    flash.php
+  placeholders/
+    module.php
   login.php
   dashboard.php
 ```
@@ -195,3 +213,20 @@ POST /login
 POST /logout
 GET /dashboard
 ```
+
+## Administrative Layout
+
+Sprint 4.1 introduces a reusable authenticated admin layout built with plain PHP views. Authenticated pages use `views/layouts/admin.php` with shared sidebar, header, and flash partials.
+
+The sidebar includes Dashboard, Cadastros, Empresas, Usuarios, Sistema, Perfil, Alterar senha, and a POST-only logout action. The dashboard now uses cards for user, public code, login, category, tenant, application version, and database status, plus quick links to protected placeholder pages.
+
+Protected placeholder routes:
+
+```http
+GET /admin/companies
+GET /admin/users
+GET /profile
+GET /change-password
+```
+
+These pages do not implement CRUD, profile editing, or password changes yet.
