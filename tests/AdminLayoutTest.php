@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use HPucca\Platform\Core\Response;
 use HPucca\Platform\Core\View;
+use HPucca\Platform\Models\Tenant;
 use HPucca\Platform\Middleware\AuthMiddleware;
 use HPucca\Platform\Middleware\OwnerMiddleware;
 use HPucca\Platform\Services\AuthService;
@@ -83,6 +84,21 @@ assert(str_contains($body, 'Empresa A'));
 assert(!str_contains($body, 'password_hash'));
 assert(!str_contains($body, 'secret'));
 assert(!str_contains($body, 'senha-hash'));
+
+$userCreate = View::admin('users/create.php', [
+    'title' => 'Novo usuario',
+    'activeMenu' => 'users',
+    'breadcrumbs' => ['Dashboard' => '/dashboard', 'Usuarios' => '/admin/users', 'Formulario' => null],
+    'user' => AuthService::sessionUser(),
+    'tenant' => AuthService::sessionTenant(),
+    'values' => ['tenant_id' => '', 'name' => '', 'login' => '', 'email' => '', 'type' => 'user', 'status' => 'active'],
+    'errors' => [],
+    'tenants' => [new Tenant(1, 'TEN000001', 'Empresa A', 'empresa-a', 'active', '2026-01-01', '2026-01-01')],
+]);
+$userCreateBody = responseBody($userCreate);
+$matches = [];
+assert(preg_match('/<form class="entity-form" method="post" action="\/admin\/users">\s*<input type="hidden" name="_csrf" value="([^"]+)">/s', $userCreateBody, $matches) === 1);
+assert(($matches[1] ?? '') !== '');
 
 $ownerAccess = (new OwnerMiddleware())->handle(static fn (): Response => Response::html('owner'));
 assert(responseStatus($ownerAccess) === 200);
