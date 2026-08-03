@@ -30,10 +30,10 @@ final class View
      */
     public static function admin(string $view, array $data = []): Response
     {
+        $data['csrfField'] = $data['csrfField'] ?? CsrfService::field();
         $content = self::render($view, $data);
         $layoutData = array_merge($data, [
             'content' => $content,
-            'csrfField' => CsrfService::field(),
             'flash' => FlashService::consume(),
         ]);
 
