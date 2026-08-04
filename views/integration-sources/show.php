@@ -10,7 +10,7 @@ $source = $source instanceof IntegrationSource ? $source : null;
     <section class="entity-details">
         <dl>
             <dt>Codigo</dt>
-            <dd><?= $e($source->code) ?></dd>
+            <dd><?= $copyableText($source->code, 'Copiar', 'Codigo copiado', 'code-copy') ?></dd>
             <dt>Nome</dt>
             <dd><?= $e($source->name) ?></dd>
             <dt>Empresa</dt>
@@ -18,13 +18,13 @@ $source = $source instanceof IntegrationSource ? $source : null;
             <dt>Slug</dt>
             <dd><?= $e($source->slug) ?></dd>
             <dt>Status</dt>
-            <dd><?= $e($source->status) ?></dd>
+            <dd><?= $statusBadge($source->status) ?></dd>
             <dt>Ultimo uso</dt>
-            <dd><?= $e($source->lastUsedAt ?? '-') ?></dd>
+            <dd><?= $e($formatDate($source->lastUsedAt)) ?></dd>
             <dt>Criacao</dt>
-            <dd><?= $e($source->createdAt) ?></dd>
+            <dd><?= $e($formatDate($source->createdAt)) ?></dd>
             <dt>Atualizacao</dt>
-            <dd><?= $e($source->updatedAt) ?></dd>
+            <dd><?= $e($formatDate($source->updatedAt)) ?></dd>
         </dl>
     </section>
 

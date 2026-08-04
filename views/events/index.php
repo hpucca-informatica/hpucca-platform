@@ -50,45 +50,47 @@ $query = http_build_query(array_filter($filters, static fn (string $value): bool
     <a href="/admin/events">Limpar</a>
 </form>
 
-<div class="table-wrapper">
-    <table>
-        <thead>
-            <tr>
-                <th>Codigo</th>
-                <th>Empresa</th>
-                <th>Fonte</th>
-                <th>Tipo</th>
-                <th>External ID</th>
-                <th>Status</th>
-                <th>Tentativas</th>
-                <th>Recebido em</th>
-                <th>Acoes</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php foreach ($events as $listedEvent): ?>
-                <?php if ($listedEvent instanceof Event): ?>
-                    <tr>
-                        <td><?= $e($listedEvent->code) ?></td>
-                        <td><?= $e($listedEvent->tenantName) ?></td>
-                        <td><?= $e($listedEvent->integrationSourceName) ?></td>
-                        <td><?= $e($listedEvent->eventType) ?></td>
-                        <td><?= $e($listedEvent->externalId) ?></td>
-                        <td><?= $e($listedEvent->status) ?></td>
-                        <td><?= $e((string) $listedEvent->attempts) ?></td>
-                        <td><?= $e($listedEvent->receivedAt) ?></td>
-                        <td><a href="/admin/events/<?= $e((string) $listedEvent->id) ?>">Ver</a></td>
-                    </tr>
-                <?php endif; ?>
-            <?php endforeach; ?>
-            <?php if ($events === []): ?>
+<?php if ($events === []): ?>
+    <section class="empty-state">
+        <h2>Nenhum evento encontrado.</h2>
+        <p>Quando as integracoes enviarem eventos, eles aparecerao aqui.</p>
+    </section>
+<?php else: ?>
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
                 <tr>
-                    <td colspan="9">Nenhum evento encontrado.</td>
+                    <th>Codigo</th>
+                    <th>Empresa</th>
+                    <th>Fonte</th>
+                    <th>Tipo</th>
+                    <th>External ID</th>
+                    <th>Status</th>
+                    <th>Tentativas</th>
+                    <th>Recebido em</th>
+                    <th>Acoes</th>
                 </tr>
-            <?php endif; ?>
-        </tbody>
-    </table>
-</div>
+            </thead>
+            <tbody>
+                <?php foreach ($events as $listedEvent): ?>
+                    <?php if ($listedEvent instanceof Event): ?>
+                        <tr>
+                            <td><?= $copyableText($listedEvent->code, 'Copiar', 'Codigo copiado', 'code-copy') ?></td>
+                            <td><?= $e($listedEvent->tenantName) ?></td>
+                            <td><?= $e($listedEvent->integrationSourceName) ?></td>
+                            <td><code><?= $e($listedEvent->eventType) ?></code></td>
+                            <td><?= $e($listedEvent->externalId) ?></td>
+                            <td><?= $statusBadge($listedEvent->status) ?></td>
+                            <td class="text-center"><?= $e((string) $listedEvent->attempts) ?></td>
+                            <td><?= $e($formatDate($listedEvent->receivedAt)) ?></td>
+                            <td><a href="/admin/events/<?= $e((string) $listedEvent->id) ?>">Ver</a></td>
+                        </tr>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+<?php endif; ?>
 
 <nav class="pagination" aria-label="Paginacao">
     <?php if ($page > 1): ?>
