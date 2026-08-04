@@ -8,6 +8,17 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), e este
 
 ### Adicionado
 
+- Primeira camada de entrada e fila de eventos da plataforma.
+- Migrations `004_create_integration_sources.sql` e `005_create_events.sql`.
+- Codigos publicos imutaveis `SRC000001` e `EVT000001` gerados por sequences PostgreSQL.
+- CRUD administrativo de fontes de integracao por tenant.
+- Listagem e visualizacao administrativa de eventos.
+- Endpoint publico `POST /api/v1/events` com autenticacao por `X-API-Key`.
+- `ApiKeyService` com geracao por `random_bytes()`, prefixo `hpk_live_`, armazenamento por `password_hash()` e verificacao segura.
+- `EventIngestionService` para autenticacao da fonte, validacao do payload, limite de tamanho, idempotencia e persistencia de eventos `pending`.
+- Repositories e models para `IntegrationSource` e `Event`.
+- Menu administrativo de Automacao visivel somente para usuarios `owner`.
+- Testes de regressao para ingestao de eventos, API key, idempotencia, CSRF administrativo e migrations de imutabilidade.
 - CRUD administrativo de usuarios usando a tabela `users`.
 - Listagem, busca, filtro por empresa, paginacao, cadastro, edicao, detalhe, ativacao e inativacao de usuarios.
 - Redefinicao administrativa de senha para owners.
@@ -46,6 +57,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), e este
 
 ### Decisoes
 
+- Eventos duplicados retornam HTTP 200 com `status = duplicate` e o `event_code` existente para permitir reenvio idempotente.
+- API keys sao armazenadas com `password_hash()` para manter armazenamento unidirecional e permitir upgrades futuros de algoritmo.
+- Webhook publico nao usa sessao nem CSRF; a autenticacao e feita por API key da fonte.
+- O payload recebido e limitado a 65536 bytes e apenas o objeto `data` e persistido em `events.payload`.
+- Assinatura HMAC, rotacao de API key, processamento, retries, worker e envio ao n8n permanecem fora do Sprint 5.1.
 - Inativacao substitui exclusao fisica de empresas.
 - A protecao `owner` e provisoria e nao substitui roles e permissions futuros.
 - Com multiplos tenants ja existentes, a atribuicao inicial de `TEN000001`, `TEN000002` etc. nao possui ordem de negocio deterministica; no ambiente atual ha apenas um tenant, entao HPucca Informatica recebera `TEN000001`.

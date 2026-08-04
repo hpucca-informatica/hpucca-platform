@@ -36,14 +36,24 @@ app/
     FlashService.php
     PublicCodeGenerator.php
     UserService.php
+    ApiKeyService.php
+    EventIngestionService.php
+    EventQueryService.php
+    IntegrationSourceService.php
   Repositories/
     CompanyRepository.php
     CompanyRepositoryContract.php
+    EventRepository.php
+    EventRepositoryContract.php
+    IntegrationSourceRepository.php
+    IntegrationSourceRepositoryContract.php
     UserRepositoryContract.php
     TenantRepository.php
     UserRepository.php
   Models/
     Tenant.php
+    Event.php
+    IntegrationSource.php
     User.php
   Middleware/
     AuthMiddleware.php
@@ -63,6 +73,8 @@ database/
     001_create_tenants.sql
     002_create_users.sql
     003_add_tenant_code.sql
+    004_create_integration_sources.sql
+    005_create_events.sql
   seeds/
 docs/
 public/
@@ -101,6 +113,16 @@ views/
     edit.php
     show.php
     reset-password.php
+  integration-sources/
+    index.php
+    create.php
+    _form.php
+    edit.php
+    show.php
+    api-key-created.php
+  events/
+    index.php
+    show.php
   profile/
     show.php
   password/
@@ -325,3 +347,118 @@ POST /change-password
 The profile page allows the authenticated user to update only `name` and `email`. The change-password page validates the current password with `password_verify()`, requires a new password with at least 10 characters, and regenerates the session after success.
 
 Sprint 4.3 intentionally does not add physical deletion, password recovery by e-mail, e-mail sending, 2FA, OAuth, JWT, persisted sessions, audit logs, full roles and permissions, or business modules.
+
+## Event Ingestion Foundation
+
+Sprint 5.1 adds the first event-oriented automation layer without processing, dispatching, workers, cron, retries, dead-letter queues, n8n delivery, WhatsApp, AI, HMAC signatures, or API key rotation.
+
+Two domain concepts are introduced:
+
+- `IntegrationSource`: an external system authorized to send events for one tenant.
+- `Event`: an external fact received by the platform and stored in a pending queue.
+
+Administrative routes for integration sources:
+
+```http
+GET /admin/integration-sources
+GET /admin/integration-sources/create
+POST /admin/integration-sources
+GET /admin/integration-sources/{id}
+GET /admin/integration-sources/{id}/edit
+POST /admin/integration-sources/{id}
+POST /admin/integration-sources/{id}/activate
+POST /admin/integration-sources/{id}/deactivate
+```
+
+Administrative event routes:
+
+```http
+GET /admin/events
+GET /admin/events/{id}
+```
+
+All administrative source and event routes require an authenticated `owner` through `AuthMiddleware` and `OwnerMiddleware`. POST administrative routes keep CSRF protection. Non-owner users receive HTTP 403 even if links are hidden from the sidebar.
+
+### API Keys
+
+Each integration source receives its own API key with the prefix `hpk_live_`. The key is generated with `random_bytes()`, displayed only once immediately after creation, and never shown again in listings, detail pages, URLs, logs, or administrative endpoints.
+
+Only a `password_hash()` hash is stored in `integration_sources.api_key_hash`. Runtime authentication uses `password_verify()` with constant-time password hash verification. This favors safe one-way storage and future algorithm upgrades over reversible or plaintext API key storage.
+
+API key rotation is intentionally outside this Sprint.
+
+### Public Webhook
+
+```http
+POST /api/v1/events
+Content-Type: application/json
+X-API-Key: hpk_live_...
+```
+
+Expected body:
+
+```json
+{
+  "event": "lead.created",
+  "external_id": "identificador-unico-no-sistema-origem",
+  "occurred_at": "2026-08-03T10:00:00-03:00",
+  "data": {}
+}
+```
+
+`occurred_at` is optional. `data` must be a JSON object. The maximum request body size is 65536 bytes. Payloads must not contain passwords, tokens, API keys, or other secrets.
+
+Example:
+
+```bash
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: SUA_API_KEY" \
+  -d '{"event":"lead.created","external_id":"LEAD-001","data":{"name":"Teste"}}' \
+  https://DOMINIO/api/v1/events
+```
+
+Webhook responses:
+
+```json
+{"status":"accepted","event_code":"EVT000001"}
+```
+
+Accepted events return HTTP 202 and are persisted with status `pending`.
+
+Duplicate events return HTTP 200:
+
+```json
+{"status":"duplicate","event_code":"EVT000001"}
+```
+
+The duplicate decision uses HTTP 200 so external systems can safely retry delivery without treating an already accepted event as a failure.
+
+Other response codes:
+
+- HTTP 401 for missing or invalid API key.
+- HTTP 403 for inactive source or inactive tenant.
+- HTTP 415 for non-JSON Content-Type.
+- HTTP 422 for invalid JSON, invalid fields, missing `event`, missing `external_id`, invalid `data`, invalid `occurred_at`, or oversized payload.
+- HTTP 500 for generic internal failures without stack trace, SQL, API key hash, or secrets.
+
+### Idempotency and Queue State
+
+Events are idempotent by `(integration_source_id, external_id, event_type)`. If the source sends the same event again, the platform returns the existing event code and does not create another row or silently replace the payload.
+
+Event statuses are:
+
+- `pending`: received and waiting for future processing.
+- `processing`: reserved for a future worker.
+- `processed`: reserved for a future successful processing state.
+- `failed`: reserved for a future terminal failure state.
+
+Sprint 5.1 only creates `pending` events. The administrative interface allows listing, filtering, and viewing escaped JSON payloads; it does not allow editing payloads, changing status, reprocessing, or deleting events.
+
+### Tenant Isolation
+
+An API key belongs to exactly one integration source, and that source belongs to exactly one tenant. The webhook derives `tenant_id` from the authenticated source, never from user-submitted JSON. A source from one tenant cannot create events for another tenant.
+
+Integration source codes use `SRC000001` from the PostgreSQL sequence `integration_sources_code_seq`. Event codes use `EVT000001` from `events_code_seq`. Both codes are immutable through PostgreSQL triggers.
+
+HMAC request signatures are documented as a future hardening step and are not implemented in Sprint 5.1.
