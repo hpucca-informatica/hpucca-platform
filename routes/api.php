@@ -5,7 +5,10 @@ declare(strict_types=1);
 use HPucca\Platform\Controllers\AuthController;
 use HPucca\Platform\Controllers\CompanyController;
 use HPucca\Platform\Controllers\DashboardController;
+use HPucca\Platform\Controllers\EventController;
+use HPucca\Platform\Controllers\EventWebhookController;
 use HPucca\Platform\Controllers\HealthController;
+use HPucca\Platform\Controllers\IntegrationSourceController;
 use HPucca\Platform\Controllers\PasswordController;
 use HPucca\Platform\Controllers\ProfileController;
 use HPucca\Platform\Controllers\UserController;
@@ -26,6 +29,10 @@ $router->get('/api/v1/health', static function (Request $request): Response {
 
 $router->get('/api/v1/health/database', static function (Request $request): Response {
     return (new HealthController(new Database(Config::get('database'))))->database();
+});
+
+$router->post('/api/v1/events', static function (Request $request): Response {
+    return (new EventWebhookController(new Database(Config::get('database'))))->store($request);
 });
 
 $router->get('/login', static function (Request $request): Response {
@@ -194,6 +201,86 @@ $router->post('/admin/users/{id}/reset-password', static function (Request $requ
     return (new AuthMiddleware(new AuthService()))->handle(
         static fn (): Response => (new OwnerMiddleware())->handle(
             static fn (): Response => (new UserController(new Database(Config::get('database'))))->resetPassword($request)
+        )
+    );
+});
+
+$router->get('/admin/integration-sources', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new IntegrationSourceController(new Database(Config::get('database'))))->index($request)
+        )
+    );
+});
+
+$router->get('/admin/integration-sources/create', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new IntegrationSourceController(new Database(Config::get('database'))))->create()
+        )
+    );
+});
+
+$router->post('/admin/integration-sources', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new IntegrationSourceController(new Database(Config::get('database'))))->store($request)
+        )
+    );
+});
+
+$router->get('/admin/integration-sources/{id}', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new IntegrationSourceController(new Database(Config::get('database'))))->show($request)
+        )
+    );
+});
+
+$router->get('/admin/integration-sources/{id}/edit', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new IntegrationSourceController(new Database(Config::get('database'))))->edit($request)
+        )
+    );
+});
+
+$router->post('/admin/integration-sources/{id}', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new IntegrationSourceController(new Database(Config::get('database'))))->update($request)
+        )
+    );
+});
+
+$router->post('/admin/integration-sources/{id}/activate', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new IntegrationSourceController(new Database(Config::get('database'))))->activate($request)
+        )
+    );
+});
+
+$router->post('/admin/integration-sources/{id}/deactivate', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new IntegrationSourceController(new Database(Config::get('database'))))->deactivate($request)
+        )
+    );
+});
+
+$router->get('/admin/events', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new EventController(new Database(Config::get('database'))))->index($request)
+        )
+    );
+});
+
+$router->get('/admin/events/{id}', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new EventController(new Database(Config::get('database'))))->show($request)
         )
     );
 });

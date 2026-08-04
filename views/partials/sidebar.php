@@ -15,6 +15,20 @@ $menu = [
         ['key' => 'change-password', 'label' => 'Alterar senha', 'href' => '/change-password'],
     ],
 ];
+
+$isOwner = false;
+if (($user ?? null) instanceof \HPucca\Platform\Models\User) {
+    $isOwner = $user->type === 'owner';
+} elseif (is_array($user ?? null)) {
+    $isOwner = ($user['type'] ?? '') === 'owner';
+}
+
+if ($isOwner) {
+    $menu['Automacao'] = [
+        ['key' => 'integration-sources', 'label' => 'Fontes de integracao', 'href' => '/admin/integration-sources'],
+        ['key' => 'events', 'label' => 'Eventos', 'href' => '/admin/events'],
+    ];
+}
 ?>
 <aside class="admin-sidebar" aria-label="Menu administrativo">
     <a class="skip-link" href="#main-content">Ir para o conteudo</a>

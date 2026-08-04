@@ -119,6 +119,10 @@ assert(str_contains($routes, "\$router->post('/admin/companies/{id}'"));
 assert(str_contains($routes, "\$router->post('/admin/companies/{id}/activate'"));
 assert(str_contains($routes, "\$router->post('/admin/companies/{id}/deactivate'"));
 assert(str_contains($routes, "\$router->get('/admin/users'"));
+assert(str_contains($routes, "\$router->get('/admin/integration-sources'"));
+assert(str_contains($routes, "\$router->post('/admin/integration-sources'"));
+assert(str_contains($routes, "\$router->get('/admin/events'"));
+assert(str_contains($routes, "\$router->post('/api/v1/events'"));
 assert(str_contains($routes, "\$router->get('/profile'"));
 assert(str_contains($routes, "\$router->get('/change-password'"));
 

@@ -53,6 +53,33 @@ final readonly class Request
         return trim($value);
     }
 
+    public function header(string $name, string $default = ''): string
+    {
+        $serverKey = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
+        $value = $_SERVER[$serverKey] ?? null;
+
+        if ($value === null && strtolower($name) === 'content-type') {
+            $value = $_SERVER['CONTENT_TYPE'] ?? null;
+        }
+
+        return is_string($value) ? trim($value) : $default;
+    }
+
+    public function contentType(): string
+    {
+        $contentType = $this->header('Content-Type');
+        $parts = explode(';', $contentType);
+
+        return strtolower(trim($parts[0] ?? ''));
+    }
+
+    public function rawBody(): string
+    {
+        $body = file_get_contents('php://input');
+
+        return $body === false ? '' : $body;
+    }
+
     public function integerQuery(string $key, int $default = 1): int
     {
         $value = filter_var($_GET[$key] ?? null, FILTER_VALIDATE_INT);
