@@ -15,6 +15,9 @@ final class View
     public static function render(string $view, array $data = []): string
     {
         $e = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+        $formatDate = static fn (?string $value): string => ViewHelper::formatDate($value);
+        $statusBadge = static fn (string $status): string => ViewHelper::statusBadge($status);
+        $copyableText = static fn (string $value, string $buttonLabel = 'Copiar', string $feedback = 'Copiado', string $class = ''): string => ViewHelper::copyableText($value, $buttonLabel, $feedback, $class);
 
         extract($data, EXTR_SKIP);
 

@@ -68,7 +68,7 @@ final readonly class UserController
             return $this->form('users/create.php', $result['values'], $result['errors'], 422);
         }
 
-        FlashService::add('Usuario cadastrado com sucesso.');
+        FlashService::add('Usuario cadastrado com sucesso.', 'success');
 
         return Response::redirect('/admin/users/' . $result['user']->id);
     }
@@ -78,7 +78,7 @@ final readonly class UserController
         $user = $this->userFromRequest($request);
 
         if (!$user instanceof User) {
-            FlashService::add('Usuario nao encontrado.');
+            FlashService::add('Usuario nao encontrado.', 'error');
 
             return Response::redirect('/admin/users');
         }
@@ -97,7 +97,7 @@ final readonly class UserController
         $user = $this->userFromRequest($request);
 
         if (!$user instanceof User) {
-            FlashService::add('Usuario nao encontrado.');
+            FlashService::add('Usuario nao encontrado.', 'error');
 
             return Response::redirect('/admin/users');
         }
@@ -115,7 +115,7 @@ final readonly class UserController
         $user = $this->service()->find($id);
 
         if (!$user instanceof User) {
-            FlashService::add('Usuario nao encontrado.');
+            FlashService::add('Usuario nao encontrado.', 'error');
 
             return Response::redirect('/admin/users');
         }
@@ -126,7 +126,7 @@ final readonly class UserController
             return $this->form('users/edit.php', $result['values'], $result['errors'], 422, $user);
         }
 
-        FlashService::add('Usuario atualizado com sucesso.');
+        FlashService::add('Usuario atualizado com sucesso.', 'success');
 
         return Response::redirect('/admin/users/' . $id);
     }
@@ -141,12 +141,12 @@ final readonly class UserController
         $result = $this->service()->activate($id);
 
         if (!$result['ok']) {
-            FlashService::add($result['message']);
+            FlashService::add($result['message'], 'warning');
 
             return Response::redirect('/admin/users');
         }
 
-        FlashService::add('Usuario ativado com sucesso.');
+        FlashService::add('Usuario ativado com sucesso.', 'success');
 
         return Response::redirect('/admin/users/' . $id);
     }
@@ -161,12 +161,12 @@ final readonly class UserController
         $result = $this->service()->deactivate($id, (new AuthService())->userId());
 
         if (!$result['ok']) {
-            FlashService::add($result['message']);
+            FlashService::add($result['message'], 'warning');
 
             return Response::redirect('/admin/users');
         }
 
-        FlashService::add('Usuario inativado com sucesso.');
+        FlashService::add('Usuario inativado com sucesso.', 'success');
 
         return Response::redirect('/admin/users/' . $id);
     }
@@ -176,7 +176,7 @@ final readonly class UserController
         $user = $this->userFromRequest($request);
 
         if (!$user instanceof User) {
-            FlashService::add('Usuario nao encontrado.');
+            FlashService::add('Usuario nao encontrado.', 'error');
 
             return Response::redirect('/admin/users');
         }
@@ -200,7 +200,7 @@ final readonly class UserController
         $user = $this->service()->find($id);
 
         if (!$user instanceof User) {
-            FlashService::add('Usuario nao encontrado.');
+            FlashService::add('Usuario nao encontrado.', 'error');
 
             return Response::redirect('/admin/users');
         }
@@ -221,7 +221,7 @@ final readonly class UserController
             ], 422);
         }
 
-        FlashService::add('Senha redefinida com sucesso.');
+        FlashService::add('Senha redefinida com sucesso.', 'success');
 
         return Response::redirect('/admin/users/' . $id);
     }

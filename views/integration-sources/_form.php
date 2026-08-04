@@ -39,7 +39,7 @@ $fieldError = static fn (string $key): string => is_string($errors[$key] ?? null
 
         <div class="form-field">
             <label for="source-name">Nome</label>
-            <input id="source-name" name="name" type="text" maxlength="150" required value="<?= $e($fieldValue('name')) ?>">
+            <input id="source-name" name="name" type="text" maxlength="150" required value="<?= $e($fieldValue('name')) ?>" data-slug-source>
             <?php if ($fieldError('name') !== ''): ?>
                 <span class="form-error"><?= $e($fieldError('name')) ?></span>
             <?php endif; ?>
@@ -47,7 +47,7 @@ $fieldError = static fn (string $key): string => is_string($errors[$key] ?? null
 
         <div class="form-field">
             <label for="source-slug">Slug</label>
-            <input id="source-slug" name="slug" type="text" maxlength="100" required value="<?= $e($fieldValue('slug')) ?>">
+            <input id="source-slug" name="slug" type="text" maxlength="100" required value="<?= $e($fieldValue('slug')) ?>" data-slug-target>
             <?php if ($fieldError('slug') !== ''): ?>
                 <span class="form-error"><?= $e($fieldError('slug')) ?></span>
             <?php endif; ?>

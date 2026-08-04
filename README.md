@@ -29,6 +29,7 @@ app/
     Response.php
     Router.php
     View.php
+    ViewHelper.php
   Services/
     AuthService.php
     CompanyService.php
@@ -145,6 +146,7 @@ Copy `.env.example` to `.env` for local development and set the values for your 
 APP_NAME="HPucca Platform"
 APP_ENV=local
 APP_DEBUG=true
+APP_TIMEZONE=America/Sao_Paulo
 APP_VERSION=0.2.0
 
 DB_HOST=
@@ -160,6 +162,7 @@ Configuration is loaded through `HPucca\Platform\Core\Config`:
 ```php
 Config::get('app.name');
 Config::get('app.version');
+Config::get('app.timezone');
 Config::get('database.host');
 ```
 
@@ -385,7 +388,19 @@ Each integration source receives its own API key with the prefix `hpk_live_`. Th
 
 Only a `password_hash()` hash is stored in `integration_sources.api_key_hash`. Runtime authentication uses `password_verify()` with constant-time password hash verification. This favors safe one-way storage and future algorithm upgrades over reversible or plaintext API key storage.
 
+The one-time key screen shows the generated value in a full-width readonly input with a local copy button. The key is still not stored in plaintext, not placed in URLs, and not exposed again after leaving the screen.
+
 API key rotation is intentionally outside this Sprint.
+
+### Administrative Polish
+
+Sprint 5.1.1 adds interface polish only. It does not change migrations, database structure, API contracts, authentication, authorization, event ingestion rules, idempotency, or queue behavior.
+
+Integration source forms generate a slug from the source name in the browser while the slug field is still empty. The generated slug is lowercase, removes accents, converts `ç` to `c`, removes special characters, converts spaces to hyphens, compacts duplicated hyphens, trims hyphens at the edges, and is limited to 100 characters. If the user edits the slug manually, automatic updates stop for that form, and edit pages preserve the existing slug on load.
+
+The backend remains authoritative for slug validation and tenant-scoped uniqueness. JavaScript only improves the form experience.
+
+Administrative event and integration source screens now reuse a small copy component for public codes and JSON payloads, display statuses as badges, use empty states for empty listings, and format dates as `dd/mm/yyyy HH:mm:ss` using `APP_TIMEZONE`.
 
 ### Public Webhook
 

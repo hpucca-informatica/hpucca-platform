@@ -41,7 +41,7 @@ final readonly class EventController
         $event = $this->service()->find(max(0, (int) ($request->param('id') ?? 0)));
 
         if (!$event instanceof Event) {
-            FlashService::add('Evento nao encontrado.');
+            FlashService::add('Evento nao encontrado.', 'error');
 
             return Response::redirect('/admin/events');
         }

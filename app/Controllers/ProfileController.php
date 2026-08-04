@@ -71,7 +71,7 @@ final readonly class ProfileController
             ], 422);
         }
 
-        FlashService::add('Perfil atualizado com sucesso.');
+        FlashService::add('Perfil atualizado com sucesso.', 'success');
 
         return Response::redirect('/profile');
     }

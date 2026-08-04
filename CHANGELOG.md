@@ -8,6 +8,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), e este
 
 ### Adicionado
 
+- Acabamento administrativo do Sprint 5.1.1 para fontes de integracao e eventos, sem alteracao de banco, API, autenticacao ou regras de ingestao.
+- Geracao automatica de slug nas telas de fontes de integracao, mantendo edicao manual e validacao backend.
+- Componente reutilizavel de copia para codigos publicos, JSON de eventos e API key de exibicao unica.
+- Badges de status, estados vazios e formatacao de datas administrativas em `dd/mm/yyyy HH:mm:ss`.
+- Configuracao `APP_TIMEZONE` para exibicao de datas administrativas.
 - Primeira camada de entrada e fila de eventos da plataforma.
 - Migrations `004_create_integration_sources.sql` e `005_create_events.sql`.
 - Codigos publicos imutaveis `SRC000001` e `EVT000001` gerados por sequences PostgreSQL.

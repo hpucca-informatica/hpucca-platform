@@ -33,46 +33,49 @@ $tenantQuery = $tenantId === null ? '' : '&tenant_id=' . rawurlencode((string) $
     <a href="/admin/integration-sources">Limpar</a>
 </form>
 
-<div class="table-wrapper">
-    <table>
-        <thead>
-            <tr>
-                <th>Codigo</th>
-                <th>Nome</th>
-                <th>Empresa</th>
-                <th>Slug</th>
-                <th>Status</th>
-                <th>Ultimo uso</th>
-                <th>Criacao</th>
-                <th>Acoes</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php foreach ($sources as $listedSource): ?>
-                <?php if ($listedSource instanceof IntegrationSource): ?>
-                    <tr>
-                        <td><?= $e($listedSource->code) ?></td>
-                        <td><?= $e($listedSource->name) ?></td>
-                        <td><?= $e($listedSource->tenantName) ?></td>
-                        <td><?= $e($listedSource->slug) ?></td>
-                        <td><?= $e($listedSource->status) ?></td>
-                        <td><?= $e($listedSource->lastUsedAt ?? '-') ?></td>
-                        <td><?= $e($listedSource->createdAt) ?></td>
-                        <td class="table-actions">
-                            <a href="/admin/integration-sources/<?= $e((string) $listedSource->id) ?>">Ver</a>
-                            <a href="/admin/integration-sources/<?= $e((string) $listedSource->id) ?>/edit">Editar</a>
-                        </td>
-                    </tr>
-                <?php endif; ?>
-            <?php endforeach; ?>
-            <?php if ($sources === []): ?>
+<?php if ($sources === []): ?>
+    <section class="empty-state">
+        <h2>Nenhuma fonte encontrada.</h2>
+        <p>Cadastre uma fonte de integracao para receber eventos de sistemas externos.</p>
+        <a class="button-primary" href="/admin/integration-sources/create">Criar primeira fonte</a>
+    </section>
+<?php else: ?>
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
                 <tr>
-                    <td colspan="8">Nenhuma fonte encontrada.</td>
+                    <th>Codigo</th>
+                    <th>Nome</th>
+                    <th>Empresa</th>
+                    <th>Slug</th>
+                    <th>Status</th>
+                    <th>Ultimo uso</th>
+                    <th>Criacao</th>
+                    <th>Acoes</th>
                 </tr>
-            <?php endif; ?>
-        </tbody>
-    </table>
-</div>
+            </thead>
+            <tbody>
+                <?php foreach ($sources as $listedSource): ?>
+                    <?php if ($listedSource instanceof IntegrationSource): ?>
+                        <tr>
+                            <td><?= $copyableText($listedSource->code, 'Copiar', 'Codigo copiado', 'code-copy') ?></td>
+                            <td><?= $e($listedSource->name) ?></td>
+                            <td><?= $e($listedSource->tenantName) ?></td>
+                            <td><code><?= $e($listedSource->slug) ?></code></td>
+                            <td><?= $statusBadge($listedSource->status) ?></td>
+                            <td><?= $e($formatDate($listedSource->lastUsedAt)) ?></td>
+                            <td><?= $e($formatDate($listedSource->createdAt)) ?></td>
+                            <td class="table-actions">
+                                <a href="/admin/integration-sources/<?= $e((string) $listedSource->id) ?>">Ver</a>
+                                <a href="/admin/integration-sources/<?= $e((string) $listedSource->id) ?>/edit">Editar</a>
+                            </td>
+                        </tr>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+<?php endif; ?>
 
 <nav class="pagination" aria-label="Paginacao">
     <?php if ($page > 1): ?>
