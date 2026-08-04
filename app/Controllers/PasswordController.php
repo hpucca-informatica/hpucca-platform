@@ -59,7 +59,7 @@ final readonly class PasswordController
             ], 422);
         }
 
-        FlashService::add('Senha alterada com sucesso.');
+        FlashService::add('Senha alterada com sucesso.', 'success');
 
         return Response::redirect('/change-password');
     }

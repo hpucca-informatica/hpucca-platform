@@ -60,7 +60,7 @@ final readonly class CompanyController
             return $this->form('companies/create.php', $result['values'], $result['errors'], 422);
         }
 
-        FlashService::add('Empresa cadastrada com sucesso.');
+        FlashService::add('Empresa cadastrada com sucesso.', 'success');
 
         return Response::redirect('/admin/companies/' . $result['company']->id);
     }
@@ -115,7 +115,7 @@ final readonly class CompanyController
             return $this->form('companies/edit.php', $result['values'], $result['errors'], 422, $company);
         }
 
-        FlashService::add('Empresa atualizada com sucesso.');
+        FlashService::add('Empresa atualizada com sucesso.', 'success');
 
         return Response::redirect('/admin/companies/' . $id);
     }
@@ -130,18 +130,18 @@ final readonly class CompanyController
         $company = $this->service()->find($id);
 
         if ($company === null) {
-            FlashService::add('Empresa nao encontrada.');
+            FlashService::add('Empresa nao encontrada.', 'error');
 
             return Response::redirect('/admin/companies');
         }
 
         if (!$this->service()->activate($id)) {
-            FlashService::add('Nao foi possivel alterar o status da empresa.');
+            FlashService::add('Nao foi possivel alterar o status da empresa.', 'error');
 
             return Response::redirect('/admin/companies/' . $id);
         }
 
-        FlashService::add('Empresa ativada com sucesso.');
+        FlashService::add('Empresa ativada com sucesso.', 'success');
 
         return Response::redirect('/admin/companies/' . $id);
     }
@@ -156,7 +156,7 @@ final readonly class CompanyController
         $company = $this->service()->find($id);
 
         if ($company === null) {
-            FlashService::add('Empresa nao encontrada.');
+            FlashService::add('Empresa nao encontrada.', 'error');
 
             return Response::redirect('/admin/companies');
         }
@@ -165,12 +165,12 @@ final readonly class CompanyController
             $message = (new AuthService())->tenantId() === $id
                 ? 'Nao e possivel inativar a empresa atual.'
                 : 'Nao foi possivel alterar o status da empresa.';
-            FlashService::add($message);
+            FlashService::add($message, 'warning');
 
             return Response::redirect('/admin/companies/' . $id);
         }
 
-        FlashService::add('Empresa inativada com sucesso.');
+        FlashService::add('Empresa inativada com sucesso.', 'success');
 
         return Response::redirect('/admin/companies/' . $id);
     }

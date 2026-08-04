@@ -63,7 +63,7 @@ final readonly class IntegrationSourceController
             return $this->form('integration-sources/create.php', $result['values'], $result['errors'], 422);
         }
 
-        FlashService::add('Fonte de integracao cadastrada com sucesso.');
+        FlashService::add('Fonte de integracao cadastrada com sucesso.', 'success');
 
         return $this->admin('integration-sources/api-key-created.php', [
             'title' => 'API key criada',
@@ -79,7 +79,7 @@ final readonly class IntegrationSourceController
         $source = $this->sourceFromRequest($request);
 
         if (!$source instanceof IntegrationSource) {
-            FlashService::add('Fonte de integracao nao encontrada.');
+            FlashService::add('Fonte de integracao nao encontrada.', 'error');
 
             return Response::redirect('/admin/integration-sources');
         }
@@ -97,7 +97,7 @@ final readonly class IntegrationSourceController
         $source = $this->sourceFromRequest($request);
 
         if (!$source instanceof IntegrationSource) {
-            FlashService::add('Fonte de integracao nao encontrada.');
+            FlashService::add('Fonte de integracao nao encontrada.', 'error');
 
             return Response::redirect('/admin/integration-sources');
         }
@@ -120,7 +120,7 @@ final readonly class IntegrationSourceController
         $source = $this->service()->find($id);
 
         if (!$source instanceof IntegrationSource) {
-            FlashService::add('Fonte de integracao nao encontrada.');
+            FlashService::add('Fonte de integracao nao encontrada.', 'error');
 
             return Response::redirect('/admin/integration-sources');
         }
@@ -131,7 +131,7 @@ final readonly class IntegrationSourceController
             return $this->form('integration-sources/edit.php', $result['values'], $result['errors'], 422, $source);
         }
 
-        FlashService::add('Fonte de integracao atualizada com sucesso.');
+        FlashService::add('Fonte de integracao atualizada com sucesso.', 'success');
 
         return Response::redirect('/admin/integration-sources/' . $id);
     }
@@ -143,7 +143,8 @@ final readonly class IntegrationSourceController
         }
 
         $id = $this->id($request);
-        FlashService::add($this->service()->activate($id) ? 'Fonte ativada com sucesso.' : 'Nao foi possivel ativar a fonte.');
+        $activated = $this->service()->activate($id);
+        FlashService::add($activated ? 'Fonte ativada com sucesso.' : 'Nao foi possivel ativar a fonte.', $activated ? 'success' : 'error');
 
         return Response::redirect('/admin/integration-sources/' . $id);
     }
@@ -155,7 +156,8 @@ final readonly class IntegrationSourceController
         }
 
         $id = $this->id($request);
-        FlashService::add($this->service()->deactivate($id) ? 'Fonte inativada com sucesso.' : 'Nao foi possivel inativar a fonte.');
+        $deactivated = $this->service()->deactivate($id);
+        FlashService::add($deactivated ? 'Fonte inativada com sucesso.' : 'Nao foi possivel inativar a fonte.', $deactivated ? 'success' : 'error');
 
         return Response::redirect('/admin/integration-sources/' . $id);
     }
