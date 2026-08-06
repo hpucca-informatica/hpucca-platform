@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace HPucca\Platform\Repositories;
 
+use DateTimeImmutable;
 use HPucca\Platform\Models\Event;
 use HPucca\Platform\Services\PublicCodeGenerator;
 use PDO;
@@ -82,6 +83,100 @@ final readonly class EventRepository implements EventRepositoryContract
         $row = $statement->fetch(PDO::FETCH_ASSOC);
 
         return $row === false ? null : $this->map($row);
+    }
+
+    public function reserveNextPending(): ?Event
+    {
+        $transaction = $this->beginShortTransaction();
+
+        try {
+            $statement = $this->connection->prepare(
+                "SELECT e.id
+                 FROM events e
+                 INNER JOIN tenants t ON t.id = e.tenant_id
+                 INNER JOIN integration_sources s ON s.id = e.integration_source_id
+                 WHERE e.status = 'pending'
+                   AND e.available_at <= CURRENT_TIMESTAMP
+                   AND t.status = 'active'
+                   AND s.status = 'active'
+                 ORDER BY e.available_at ASC, e.id ASC
+                 FOR UPDATE OF e SKIP LOCKED
+                 LIMIT 1"
+            );
+            $statement->execute();
+            $eventId = $statement->fetchColumn();
+
+            if ($eventId === false) {
+                $this->commitShortTransaction($transaction);
+
+                return null;
+            }
+
+            $update = $this->connection->prepare(
+                "UPDATE events
+                 SET status = 'processing',
+                     attempts = attempts + 1,
+                     updated_at = CURRENT_TIMESTAMP
+                 WHERE id = :id
+                   AND status = 'pending'"
+            );
+            $update->execute(['id' => (int) $eventId]);
+
+            if ($update->rowCount() !== 1) {
+                $this->rollBackShortTransaction($transaction);
+
+                return null;
+            }
+
+            $this->commitShortTransaction($transaction);
+
+            return $this->findById((int) $eventId);
+        } catch (\Throwable $exception) {
+            $this->rollBackShortTransaction($transaction);
+
+            throw $exception;
+        }
+    }
+
+    public function markProcessed(int $eventId, DateTimeImmutable $processedAt): bool
+    {
+        $statement = $this->connection->prepare(
+            "UPDATE events
+             SET status = 'processed',
+                 processed_at = :processed_at,
+                 failed_at = NULL,
+                 last_error = NULL,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id
+               AND status = 'processing'"
+        );
+        $statement->execute([
+            'id' => $eventId,
+            'processed_at' => $processedAt->format('Y-m-d H:i:sP'),
+        ]);
+
+        return $statement->rowCount() === 1;
+    }
+
+    public function markFailed(int $eventId, string $sanitizedError, DateTimeImmutable $failedAt): bool
+    {
+        $statement = $this->connection->prepare(
+            "UPDATE events
+             SET status = 'failed',
+                 processed_at = NULL,
+                 failed_at = :failed_at,
+                 last_error = :last_error,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id
+               AND status = 'processing'"
+        );
+        $statement->execute([
+            'id' => $eventId,
+            'failed_at' => $failedAt->format('Y-m-d H:i:sP'),
+            'last_error' => substr($sanitizedError, 0, 1000),
+        ]);
+
+        return $statement->rowCount() === 1;
     }
 
     /**
@@ -181,6 +276,45 @@ final readonly class EventRepository implements EventRepositoryContract
                 FROM events e
                 INNER JOIN tenants t ON t.id = e.tenant_id
                 INNER JOIN integration_sources s ON s.id = e.integration_source_id';
+    }
+
+    private function beginShortTransaction(): string
+    {
+        if (!$this->connection->inTransaction()) {
+            $this->connection->beginTransaction();
+
+            return 'transaction';
+        }
+
+        $this->connection->exec('SAVEPOINT event_repository_reserve');
+
+        return 'savepoint';
+    }
+
+    private function commitShortTransaction(string $transaction): void
+    {
+        if ($transaction === 'savepoint') {
+            $this->connection->exec('RELEASE SAVEPOINT event_repository_reserve');
+
+            return;
+        }
+
+        $this->connection->commit();
+    }
+
+    private function rollBackShortTransaction(string $transaction): void
+    {
+        if ($transaction === 'savepoint') {
+            if ($this->connection->inTransaction()) {
+                $this->connection->exec('ROLLBACK TO SAVEPOINT event_repository_reserve');
+            }
+
+            return;
+        }
+
+        if ($this->connection->inTransaction()) {
+            $this->connection->rollBack();
+        }
     }
 
     /**

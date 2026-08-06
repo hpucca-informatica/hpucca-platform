@@ -120,6 +120,21 @@ final class EventIngestionEventRepository implements EventRepositoryContract
         return null;
     }
 
+    public function reserveNextPending(): ?Event
+    {
+        throw new RuntimeException('Not used.');
+    }
+
+    public function markProcessed(int $eventId, DateTimeImmutable $processedAt): bool
+    {
+        throw new RuntimeException('Not used.');
+    }
+
+    public function markFailed(int $eventId, string $sanitizedError, DateTimeImmutable $failedAt): bool
+    {
+        throw new RuntimeException('Not used.');
+    }
+
     public function create(array $data, PublicCodeGenerator $codes): array
     {
         $duplicate = $this->findDuplicate(

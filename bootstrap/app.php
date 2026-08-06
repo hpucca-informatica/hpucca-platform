@@ -10,7 +10,7 @@ if (class_exists(Dotenv::class)) {
     Dotenv::createImmutable($rootPath)->safeLoad();
 }
 
-if (session_status() === PHP_SESSION_NONE) {
+if (PHP_SAPI !== 'cli' && session_status() === PHP_SESSION_NONE) {
     $https = ($_SERVER['HTTPS'] ?? '') === 'on';
     session_set_cookie_params([
         'httponly' => true,
