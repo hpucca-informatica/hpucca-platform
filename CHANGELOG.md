@@ -8,6 +8,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), e este
 
 ### Adicionado
 
+- Dispatcher basico manual de eventos para processar um evento pendente por execucao via `php bin/dispatch-events.php`.
+- Reserva atomica de eventos pendentes com PostgreSQL `FOR UPDATE OF e SKIP LOCKED`, transacao curta e processamento fora do lock.
+- `EventDispatcher`, `EventProcessorContract` e `SimulatedEventProcessor` para o primeiro ciclo `pending -> processing -> processed/failed`.
+- Marcacao de sucesso com `processed_at` e falha com `failed_at` e `last_error` sanitizado.
+- Testes do dispatcher, do CLI e de concorrencia PostgreSQL opcional com `RUN_POSTGRES_INTEGRATION_TESTS=1`.
 - Acabamento administrativo do Sprint 5.1.1 para fontes de integracao e eventos, sem alteracao de banco, API, autenticacao ou regras de ingestao.
 - Geracao automatica de slug nas telas de fontes de integracao, mantendo edicao manual e validacao backend.
 - Componente reutilizavel de copia para codigos publicos, JSON de eventos e API key de exibicao unica.
@@ -63,6 +68,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), e este
 ### Decisoes
 
 - Eventos duplicados retornam HTTP 200 com `status = duplicate` e o `event_code` existente para permitir reenvio idempotente.
+- O dispatcher nao processa dentro do webhook; o webhook apenas persiste eventos `pending` e o CLI executa a fila manualmente.
+- A reserva do dispatcher usa transacao curta para evitar processamento duplicado sem manter lock durante o processador simulado.
 - API keys sao armazenadas com `password_hash()` para manter armazenamento unidirecional e permitir upgrades futuros de algoritmo.
 - Webhook publico nao usa sessao nem CSRF; a autenticacao e feita por API key da fonte.
 - O payload recebido e limitado a 65536 bytes e apenas o objeto `data` e persistido em `events.payload`.

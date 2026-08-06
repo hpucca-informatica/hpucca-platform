@@ -470,6 +470,61 @@ Event statuses are:
 
 Sprint 5.1 only creates `pending` events. The administrative interface allows listing, filtering, and viewing escaped JSON payloads; it does not allow editing payloads, changing status, reprocessing, or deleting events.
 
+## Event Dispatcher Foundation
+
+Sprint 6.1 adds the first manual dispatcher cycle for the event queue. The dispatcher is executed only through CLI and does not add browser buttons, public routes, cron, daemon, external HTTP calls, n8n, WhatsApp, retries, backoff, dead-letter queues, or reprocessing.
+
+```bash
+php bin/dispatch-events.php
+php bin/dispatch-events.php --limit=1
+```
+
+Output examples:
+
+```text
+No pending event available.
+Processed event EVT000002.
+Failed event EVT000003.
+```
+
+Exit code `0` means idle or successfully processed. Exit code `1` means processing failed or an internal dispatcher error occurred.
+
+The dispatcher selects one eligible event per execution:
+
+- `events.status = pending`;
+- `events.available_at <= CURRENT_TIMESTAMP`;
+- tenant is `active`;
+- integration source is `active`;
+- ordered by `available_at ASC, id ASC`.
+
+Reservation is atomic and short-lived. `EventRepository::reserveNextPending()` opens a transaction, locks one eligible row with PostgreSQL `FOR UPDATE OF e SKIP LOCKED`, updates it to `processing`, increments `attempts`, commits, and only then returns the event to the dispatcher. Processing happens outside that transaction so slow or failing processors do not hold database locks.
+
+Relevant reservation shape:
+
+```sql
+SELECT e.id
+FROM events e
+INNER JOIN tenants t ON t.id = e.tenant_id
+INNER JOIN integration_sources s ON s.id = e.integration_source_id
+WHERE e.status = 'pending'
+  AND e.available_at <= CURRENT_TIMESTAMP
+  AND t.status = 'active'
+  AND s.status = 'active'
+ORDER BY e.available_at ASC, e.id ASC
+FOR UPDATE OF e SKIP LOCKED
+LIMIT 1
+```
+
+Allowed transitions in this Sprint:
+
+- `pending -> processing`;
+- `processing -> processed`;
+- `processing -> failed`.
+
+Successful processing sets `processed_at`, clears `failed_at` and `last_error`, and preserves the incremented `attempts`. Failed processing sets `failed_at`, keeps `processed_at` null, and stores only a sanitized error such as `Event processing failed.` without stack trace, credentials, API keys, DSN, or payload content.
+
+The initial processor is `SimulatedEventProcessor`. It succeeds by default and fails only when the stored JSON payload contains `"simulate_failure": true`, a temporary test hook for the dispatcher that will be replaced when a real destination exists.
+
 ### Tenant Isolation
 
 An API key belongs to exactly one integration source, and that source belongs to exactly one tenant. The webhook derives `tenant_id` from the authenticated source, never from user-submitted JSON. A source from one tenant cannot create events for another tenant.
