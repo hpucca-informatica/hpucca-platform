@@ -135,6 +135,11 @@ final class EventIngestionEventRepository implements EventRepositoryContract
         throw new RuntimeException('Not used.');
     }
 
+    public function requeueFailed(int $eventId): bool
+    {
+        throw new RuntimeException('Not used.');
+    }
+
     public function create(array $data, PublicCodeGenerator $codes): array
     {
         $duplicate = $this->findDuplicate(

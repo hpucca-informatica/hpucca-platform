@@ -285,6 +285,14 @@ $router->get('/admin/events/{id}', static function (Request $request): Response 
     );
 });
 
+$router->post('/admin/events/{id}/reprocess', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new EventController(new Database(Config::get('database'))))->reprocess($request)
+        )
+    );
+});
+
 $router->get('/profile', static function (Request $request): Response {
     return (new AuthMiddleware(new AuthService()))->handle(
         static fn (): Response => (new ProfileController(new Database(Config::get('database'))))->show()

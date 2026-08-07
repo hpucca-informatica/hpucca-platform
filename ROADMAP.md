@@ -78,11 +78,29 @@ O estado `processing` torna a reserva explicita. Ele separa evento recebido de e
 
 `SKIP LOCKED` evita processamento duplicado em execucoes concorrentes: uma execucao bloqueia a linha escolhida, e outra execucao pula essa linha em vez de esperar ou processar o mesmo evento.
 
-## Sprint 6.2 - Proximos Passos
+## Sprint 6.2 - Reprocessamento Manual e Observabilidade
 
-- reprocessamento manual controlado;
-- politica inicial de retry;
-- limites de tentativas;
-- backoff;
-- historico de processamento;
+O Sprint 6.2 adiciona somente a transicao administrativa `failed -> pending`. Owners podem abrir o detalhe de um evento com falha e recoloca-lo na fila por `POST /admin/events/{id}/reprocess`, com CSRF e validacao de estado tambem no SQL.
+
+O reprocessamento manual nao executa o Dispatcher pela requisicao web. Ele apenas deixa o evento elegivel para uma execucao posterior do CLI, preservando `payload`, `code`, tenant, fonte, `external_id`, `event_type` e `attempts`.
+
+`attempts` continua crescendo porque representa o total historico de tentativas. A observabilidade minima usa os campos existentes: `attempts`, `available_at`, `received_at`, `processed_at`, `failed_at`, `last_error` e `updated_at`.
+
+Fora deste Sprint:
+
+- retry automatico;
+- politica de backoff;
+- max attempts;
+- cron;
+- worker continuo;
+- tabela de historico;
+- dead-letter queue;
+- botao processar agora;
+- destinos externos.
+
+## Evolucoes Futuras
+
+- stale processing recovery para eventos que ficarem em `processing` se o processo morrer apos a reserva;
+- historico detalhado de execucoes;
+- politica de retry automatico com limites;
 - preparacao para destino real.

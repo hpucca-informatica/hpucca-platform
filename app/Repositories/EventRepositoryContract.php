@@ -31,6 +31,8 @@ interface EventRepositoryContract
 
     public function markFailed(int $eventId, string $sanitizedError, DateTimeImmutable $failedAt): bool;
 
+    public function requeueFailed(int $eventId): bool;
+
     /**
      * @param array{tenant_id: int, integration_source_id: int, event_type: string, external_id: string, payload: string, occurred_at: string|null} $data
      * @return array{event: Event, duplicate: bool}

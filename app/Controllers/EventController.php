@@ -14,7 +14,9 @@ use HPucca\Platform\Repositories\EventRepository;
 use HPucca\Platform\Repositories\IntegrationSourceRepository;
 use HPucca\Platform\Repositories\TenantRepository;
 use HPucca\Platform\Services\AuthService;
+use HPucca\Platform\Services\CsrfService;
 use HPucca\Platform\Services\EventQueryService;
+use HPucca\Platform\Services\EventService;
 use HPucca\Platform\Services\FlashService;
 use RuntimeException;
 use Throwable;
@@ -51,7 +53,38 @@ final readonly class EventController
             'activeMenu' => 'events',
             'breadcrumbs' => ['Dashboard' => '/dashboard', 'Eventos' => '/admin/events', $event->code => null],
             'event' => $event,
+            'csrfField' => CsrfService::field(),
         ]);
+    }
+
+    public function reprocess(Request $request): Response
+    {
+        $eventId = max(0, (int) ($request->param('id') ?? 0));
+        $redirect = $eventId > 0 ? '/admin/events/' . $eventId : '/admin/events';
+
+        if (!CsrfService::validate($request->input(CsrfService::FIELD, '', false))) {
+            FlashService::add('Requisicao invalida. Tente novamente.', 'error');
+
+            return Response::redirect($redirect);
+        }
+
+        $result = $this->adminService()->reprocess($eventId);
+
+        if ($result['status'] === 'requeued') {
+            FlashService::add('Evento recolocado na fila para reprocessamento.', 'success');
+
+            return Response::redirect($redirect);
+        }
+
+        if ($result['status'] === 'not_found') {
+            FlashService::add('Evento nao encontrado.', 'error');
+
+            return Response::redirect('/admin/events');
+        }
+
+        FlashService::add('Somente eventos com falha podem ser reprocessados.', 'error');
+
+        return Response::redirect($redirect);
     }
 
     private function service(): EventQueryService
@@ -64,6 +97,15 @@ final readonly class EventController
                 new IntegrationSourceRepository($connection),
                 new TenantRepository($connection),
             );
+        } catch (Throwable) {
+            throw new RuntimeException('Event module unavailable.');
+        }
+    }
+
+    private function adminService(): EventService
+    {
+        try {
+            return new EventService(new EventRepository($this->database->connection()));
         } catch (Throwable) {
             throw new RuntimeException('Event module unavailable.');
         }

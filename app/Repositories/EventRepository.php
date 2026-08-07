@@ -179,6 +179,23 @@ final readonly class EventRepository implements EventRepositoryContract
         return $statement->rowCount() === 1;
     }
 
+    public function requeueFailed(int $eventId): bool
+    {
+        $statement = $this->connection->prepare(
+            "UPDATE events
+             SET status = 'pending',
+                 available_at = CURRENT_TIMESTAMP,
+                 failed_at = NULL,
+                 last_error = NULL,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id
+               AND status = 'failed'"
+        );
+        $statement->execute(['id' => $eventId]);
+
+        return $statement->rowCount() === 1;
+    }
+
     /**
      * @param array{tenant_id: int, integration_source_id: int, event_type: string, external_id: string, payload: string, occurred_at: string|null} $data
      * @return array{event: Event, duplicate: bool}

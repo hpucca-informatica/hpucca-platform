@@ -525,6 +525,28 @@ Successful processing sets `processed_at`, clears `failed_at` and `last_error`, 
 
 The initial processor is `SimulatedEventProcessor`. It succeeds by default and fails only when the stored JSON payload contains `"simulate_failure": true`, a temporary test hook for the dispatcher that will be replaced when a real destination exists.
 
+## Manual Event Reprocessing
+
+Sprint 6.2 adds owner-only manual reprocessing for failed events from the event detail screen. The administrative action is:
+
+```http
+POST /admin/events/{id}/reprocess
+```
+
+The action uses session authentication, `OwnerMiddleware`, POST, and CSRF. It does not execute the Dispatcher, does not call external destinations, and does not process the event during the HTTP request. It only performs the allowed transition:
+
+- `failed -> pending`.
+
+The SQL transition is guarded in the repository with `WHERE id = :id AND status = 'failed'`, so processed, pending, processing, missing, or concurrently changed events are not silently requeued by application checks alone.
+
+Reprocessing sets `status = pending`, `available_at = CURRENT_TIMESTAMP`, clears `failed_at` and `last_error`, keeps `processed_at` null, updates `updated_at`, and preserves immutable event data such as `payload`, `code`, tenant, source, `external_id`, and `event_type`.
+
+`attempts` is intentionally not reset. It represents total historical reservation attempts for the event, so after a failed event is manually returned to the queue, the next Dispatcher reservation increments the existing count.
+
+Manual reprocessing is different from automatic retry. Sprint 6.2 does not add retry policy, backoff, max attempts, cron, continuous worker, supervisor, dead-letter queue, HTTP client, n8n, WhatsApp, Redis, RabbitMQ, Kafka, or a processing history table. Detailed attempt history can be added in a future Sprint.
+
+If a process dies after reserving an event, the row may remain in `processing`. The event detail screen now calls this out as an operational risk, but Sprint 6.2 does not implement timeout, watchdog, or stale processing recovery.
+
 ### Tenant Isolation
 
 An API key belongs to exactly one integration source, and that source belongs to exactly one tenant. The webhook derives `tenant_id` from the authenticated source, never from user-submitted JSON. A source from one tenant cannot create events for another tenant.

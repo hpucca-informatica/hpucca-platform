@@ -9,6 +9,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), e este
 ### Adicionado
 
 - Dispatcher basico manual de eventos para processar um evento pendente por execucao via `php bin/dispatch-events.php`.
+- Reprocessamento manual owner-only de eventos `failed` por `POST /admin/events/{id}/reprocess`.
+- Transicao administrativa segura `failed -> pending`, com CSRF, validacao de estado no service e guarda SQL `WHERE id = :id AND status = 'failed'`.
+- Observabilidade minima no detalhe de eventos com `attempts`, datas de fila/processamento/falha, `last_error`, payload, aviso de `processing` preso e explicacao de que reprocessar nao executa imediatamente.
+- Teste de regressao para requeue manual seguido de nova reserva pelo Dispatcher, preservando `attempts` e incrementando na tentativa seguinte.
 - Reserva atomica de eventos pendentes com PostgreSQL `FOR UPDATE OF e SKIP LOCKED`, transacao curta e processamento fora do lock.
 - `EventDispatcher`, `EventProcessorContract` e `SimulatedEventProcessor` para o primeiro ciclo `pending -> processing -> processed/failed`.
 - Marcacao de sucesso com `processed_at` e falha com `failed_at` e `last_error` sanitizado.
@@ -69,6 +73,9 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), e este
 
 - Eventos duplicados retornam HTTP 200 com `status = duplicate` e o `event_code` existente para permitir reenvio idempotente.
 - O dispatcher nao processa dentro do webhook; o webhook apenas persiste eventos `pending` e o CLI executa a fila manualmente.
+- Reprocessar manualmente nao chama o Dispatcher via HTTP; apenas recoloca evento `failed` na fila para uma execucao posterior do CLI.
+- `attempts` nao zera no reprocessamento porque representa o historico total de tentativas de reserva/processamento do evento.
+- Recuperacao automatica de eventos presos em `processing` permanece fora do Sprint 6.2 e fica como evolucao futura.
 - A reserva do dispatcher usa transacao curta para evitar processamento duplicado sem manter lock durante o processador simulado.
 - API keys sao armazenadas com `password_hash()` para manter armazenamento unidirecional e permitir upgrades futuros de algoritmo.
 - Webhook publico nao usa sessao nem CSRF; a autenticacao e feita por API key da fonte.
