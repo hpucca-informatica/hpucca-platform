@@ -5,6 +5,7 @@ declare(strict_types=1);
 use HPucca\Platform\Models\Event;
 
 $event = $event instanceof Event ? $event : null;
+$csrfField = is_string($csrfField ?? null) ? $csrfField : '';
 $prettyPayload = '';
 
 if ($event instanceof Event) {
@@ -48,6 +49,25 @@ if ($event instanceof Event) {
             <dd><?= $e($event->lastError ?? '-') ?></dd>
         </dl>
     </section>
+
+    <?php if ($event->status === 'processing'): ?>
+        <section class="notice-card">
+            <h2>Evento em processamento.</h2>
+            <p>Se o processo morrer depois da reserva, este evento pode permanecer em processing ate uma recuperacao futura.</p>
+            <p>Ultima atualizacao: <?= $e($formatDate($event->updatedAt)) ?></p>
+        </section>
+    <?php endif; ?>
+
+    <?php if ($event->status === 'failed'): ?>
+        <section class="notice-card">
+            <h2>Reprocessamento manual</h2>
+            <p>Reprocessar nao executa imediatamente. O evento retorna para a fila e sera processado pelo Dispatcher.</p>
+            <form method="post" action="/admin/events/<?= $e((string) $event->id) ?>/reprocess" onsubmit="return confirm('Este evento sera colocado novamente na fila para nova tentativa. Deseja continuar?');">
+                <?= $csrfField ?>
+                <button type="submit">Reprocessar evento</button>
+            </form>
+        </section>
+    <?php endif; ?>
 
     <section class="json-viewer">
         <div class="section-header">
