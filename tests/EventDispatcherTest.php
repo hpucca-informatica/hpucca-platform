@@ -114,6 +114,26 @@ final class EventDispatcherMemoryRepository implements EventRepositoryContract
         return true;
     }
 
+    public function requeueFailed(int $eventId): bool
+    {
+        $event = $this->events[$eventId] ?? null;
+
+        if (!$event instanceof Event || $event->status !== 'failed') {
+            return false;
+        }
+
+        $this->events[$eventId] = self::copy(
+            $event,
+            status: 'pending',
+            availableAt: date('Y-m-d H:i:s'),
+            processedAt: null,
+            failedAt: null,
+            lastError: null,
+        );
+
+        return true;
+    }
+
     public function create(array $data, PublicCodeGenerator $codes): array
     {
         throw new RuntimeException('Not used in dispatcher tests.');
@@ -123,6 +143,7 @@ final class EventDispatcherMemoryRepository implements EventRepositoryContract
         Event $event,
         ?string $status = null,
         ?int $attempts = null,
+        ?string $availableAt = null,
         ?string $processedAt = null,
         ?string $failedAt = null,
         ?string $lastError = null,
@@ -139,7 +160,7 @@ final class EventDispatcherMemoryRepository implements EventRepositoryContract
             $event->payload,
             $status ?? $event->status,
             $attempts ?? $event->attempts,
-            $event->availableAt,
+            $availableAt ?? $event->availableAt,
             $processedAt,
             $failedAt,
             $lastError,
