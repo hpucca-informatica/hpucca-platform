@@ -547,6 +547,68 @@ Manual reprocessing is different from automatic retry. Sprint 6.2 does not add r
 
 If a process dies after reserving an event, the row may remain in `processing`. The event detail screen now calls this out as an operational risk, but Sprint 6.2 does not implement timeout, watchdog, or stale processing recovery.
 
+## Scheduled Dispatcher Execution
+
+Sprint 6.3 makes the Dispatcher suitable for safe scheduled execution without adding a continuous worker, supervisor, n8n, WhatsApp, or external HTTP delivery.
+
+The CLI accepts a bounded batch size:
+
+```bash
+php bin/dispatch-events.php
+php bin/dispatch-events.php --limit=25
+```
+
+Configuration defaults:
+
+```env
+EVENT_DISPATCH_LIMIT_DEFAULT=10
+EVENT_DISPATCH_LIMIT_MAX=100
+EVENT_PROCESSING_TIMEOUT_MINUTES=15
+```
+
+The default limit is used when no argument is provided. `--limit=N` must be between `1` and the configured maximum. Each execution processes at most `N` events, stops early when the queue is empty, and continues after individual event failures.
+
+Summary output is intentionally small and safe:
+
+```text
+Recovered stale events: 0
+Processed: 12
+Failed: 1
+Total: 13
+```
+
+No payload, token, API key, DSN, SQL detail, stack trace, or event internals are printed.
+
+Exit codes:
+
+- `0`: normal execution;
+- `1`: internal dispatcher failure;
+- `2`: invalid arguments;
+- `3`: another dispatcher execution is already running.
+
+Before processing, the command acquires a PostgreSQL advisory lock. If another scheduled execution already holds the lock, the command prints `Dispatcher already running.` and exits with code `3` without processing events. The advisory lock is global to the database session and works across containers, which is why it is preferred over a local lock file.
+
+The reserved advisory lock key is `6320001` in the logical namespace `HPucca Platform / Event Dispatcher Scheduler`. Its only purpose is to prevent two global scheduler executions from running at the same time. This key is not a secret or credential, but it must not be reused by other components; future advisory locks should use their own identifiers. Changing the key in production without coordination can temporarily allow two schedulers to run with different locks.
+
+`SKIP LOCKED` and the advisory lock solve different problems. `SKIP LOCKED` protects each event reservation so two transactions do not reserve the same row. The advisory lock protects the scheduler as a whole so two cron invocations do not run the same dispatcher loop at the same time.
+
+Before the batch loop, stale `processing` events are recovered when:
+
+```sql
+status = 'processing'
+AND updated_at < CURRENT_TIMESTAMP - timeout
+```
+
+Recovered events return to `pending`, get `available_at = CURRENT_TIMESTAMP`, clear `processed_at`, `failed_at`, and `last_error`, and keep `attempts` unchanged. Recent `processing` events are not recovered.
+
+For EasyPanel or Hostinger, configure a cron/scheduled command approximately every minute:
+
+```bash
+php /var/www/html/bin/dispatch-events.php --limit=25
+```
+
+Use the PHP binary from the deployed container/app image and the project directory that contains `bin/dispatch-events.php`. A one-minute interval is enough initially because each run is bounded, lock-protected, and exits cleanly. This is still cron-driven scheduling, not a continuous worker: the process starts, handles a limited batch, and exits.
+
 ### Tenant Isolation
 
 An API key belongs to exactly one integration source, and that source belongs to exactly one tenant. The webhook derives `tenant_id` from the authenticated source, never from user-submitted JSON. A source from one tenant cannot create events for another tenant.

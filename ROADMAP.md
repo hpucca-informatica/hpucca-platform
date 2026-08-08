@@ -100,7 +100,42 @@ Fora deste Sprint:
 
 ## Evolucoes Futuras
 
-- stale processing recovery para eventos que ficarem em `processing` se o processo morrer apos a reserva;
 - historico detalhado de execucoes;
 - politica de retry automatico com limites;
 - preparacao para destino real.
+
+## Sprint 6.3 - Execucao Automatica Segura do Dispatcher
+
+O Sprint 6.3 torna o dispatcher adequado para agendamento operacional com cron. O comando `php bin/dispatch-events.php` passa a executar lotes limitados, com `--limit=N`, defaults seguros e saida resumida.
+
+O scheduler usa PostgreSQL advisory lock para impedir duas execucoes globais simultaneas. O `SKIP LOCKED` permanece no repository porque ele resolve outro nivel do problema: concorrencia na reserva de cada evento.
+
+Antes do lote, eventos antigos em `processing` sao recuperados para `pending` quando ultrapassam `EVENT_PROCESSING_TIMEOUT_MINUTES`. Isso cobre o caso em que o processo morre depois da reserva. Eventos recentes em `processing` nao sao tocados, e `attempts` nao diminui.
+
+Configuracoes:
+
+- `EVENT_DISPATCH_LIMIT_DEFAULT=10`;
+- `EVENT_DISPATCH_LIMIT_MAX=100`;
+- `EVENT_PROCESSING_TIMEOUT_MINUTES=15`.
+
+Cron sugerido inicialmente:
+
+```bash
+php /var/www/html/bin/dispatch-events.php --limit=25
+```
+
+Uma vez por minuto e suficiente no inicio porque cada execucao e curta, limitada e protegida por lock. Isso nao cria worker continuo: o processo inicia, processa ate o limite ou ate esvaziar a fila, e termina.
+
+Fora deste Sprint:
+
+- n8n;
+- HTTP client;
+- WhatsApp;
+- retry automatico com backoff;
+- max attempts;
+- dead-letter queue;
+- worker continuo;
+- supervisor;
+- Redis, RabbitMQ, Kafka ou SQS;
+- dashboard de metricas;
+- processamento via navegador.

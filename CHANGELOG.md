@@ -9,6 +9,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), e este
 ### Adicionado
 
 - Dispatcher basico manual de eventos para processar um evento pendente por execucao via `php bin/dispatch-events.php`.
+- Execucao agendada segura do Dispatcher com `--limit=N`, limite padrao configuravel e limite maximo configuravel.
+- Loop em lote que continua apos falhas individuais e resume `processed`, `failed`, `total` e eventos stale recuperados sem imprimir payloads.
+- `DispatcherLock` com PostgreSQL advisory lock para impedir duas execucoes globais simultaneas do scheduler.
+- Recuperacao controlada de eventos antigos em `processing` por timeout configuravel, retornando-os para `pending` sem diminuir `attempts`.
+- Configuracoes `EVENT_DISPATCH_LIMIT_DEFAULT`, `EVENT_DISPATCH_LIMIT_MAX` e `EVENT_PROCESSING_TIMEOUT_MINUTES`.
 - Reprocessamento manual owner-only de eventos `failed` por `POST /admin/events/{id}/reprocess`.
 - Transicao administrativa segura `failed -> pending`, com CSRF, validacao de estado no service e guarda SQL `WHERE id = :id AND status = 'failed'`.
 - Observabilidade minima no detalhe de eventos com `attempts`, datas de fila/processamento/falha, `last_error`, payload, aviso de `processing` preso e explicacao de que reprocessar nao executa imediatamente.
@@ -73,6 +78,9 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), e este
 
 - Eventos duplicados retornam HTTP 200 com `status = duplicate` e o `event_code` existente para permitir reenvio idempotente.
 - O dispatcher nao processa dentro do webhook; o webhook apenas persiste eventos `pending` e o CLI executa a fila manualmente.
+- Cron inicia execucoes curtas e limitadas do dispatcher; isso nao e worker continuo nem daemon.
+- Advisory lock protege a execucao global do scheduler, enquanto `SKIP LOCKED` continua protegendo a reserva individual de eventos.
+- Eventos `processing` antigos podem voltar para `pending` por timeout porque processos podem morrer depois da reserva.
 - Reprocessar manualmente nao chama o Dispatcher via HTTP; apenas recoloca evento `failed` na fila para uma execucao posterior do CLI.
 - `attempts` nao zera no reprocessamento porque representa o historico total de tentativas de reserva/processamento do evento.
 - Recuperacao automatica de eventos presos em `processing` permanece fora do Sprint 6.2 e fica como evolucao futura.

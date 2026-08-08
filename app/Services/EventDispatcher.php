@@ -46,6 +46,43 @@ final readonly class EventDispatcher
         }
     }
 
+    /**
+     * @return array{processed: int, failed: int, total: int, idle: bool}
+     */
+    public function dispatchBatch(int $limit): array
+    {
+        $processed = 0;
+        $failed = 0;
+        $limit = max(1, $limit);
+
+        for ($index = 0; $index < $limit; $index++) {
+            $result = $this->dispatchOnce();
+
+            if ($result['status'] === 'idle') {
+                return [
+                    'processed' => $processed,
+                    'failed' => $failed,
+                    'total' => $processed + $failed,
+                    'idle' => true,
+                ];
+            }
+
+            if ($result['status'] === 'processed') {
+                $processed++;
+                continue;
+            }
+
+            $failed++;
+        }
+
+        return [
+            'processed' => $processed,
+            'failed' => $failed,
+            'total' => $processed + $failed,
+            'idle' => false,
+        ];
+    }
+
     private function sanitizeError(): string
     {
         return 'Event processing failed.';

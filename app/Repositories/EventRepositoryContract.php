@@ -33,6 +33,8 @@ interface EventRepositoryContract
 
     public function requeueFailed(int $eventId): bool;
 
+    public function recoverStaleProcessing(int $timeoutMinutes): int;
+
     /**
      * @param array{tenant_id: int, integration_source_id: int, event_type: string, external_id: string, payload: string, occurred_at: string|null} $data
      * @return array{event: Event, duplicate: bool}

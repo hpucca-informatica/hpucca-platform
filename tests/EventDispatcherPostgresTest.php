@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use HPucca\Platform\Repositories\EventRepository;
+use HPucca\Platform\Services\DispatcherLock;
 use HPucca\Platform\Services\EventDispatcher;
 use HPucca\Platform\Services\SimulatedEventProcessor;
 
@@ -58,6 +59,8 @@ $suffix = bin2hex(random_bytes(6));
 $tenantId = null;
 $sourceId = null;
 $eventId = null;
+$staleEventId = null;
+$recentEventId = null;
 
 try {
     $tenantStatement = $setup->prepare(
@@ -97,6 +100,14 @@ try {
     ]);
     $eventId = (int) $eventStatement->fetchColumn();
 
+    $firstLock = new DispatcherLock($firstConnection);
+    $secondLock = new DispatcherLock($secondConnection);
+    assert($firstLock->acquire());
+    assert(!$secondLock->acquire());
+    $firstLock->release();
+    assert($secondLock->acquire());
+    $secondLock->release();
+
     $firstConnection->beginTransaction();
     $secondConnection->beginTransaction();
 
@@ -113,6 +124,47 @@ try {
     assert($second['event'] === null);
     assert($firstConnection->inTransaction());
     assert($secondConnection->inTransaction());
+    $firstConnection->rollBack();
+    $secondConnection->rollBack();
+
+    $staleStatement = $setup->prepare(
+        "INSERT INTO events (tenant_id, integration_source_id, event_type, external_id, payload, status, attempts, updated_at)
+         VALUES (:tenant_id, :source_id, 'lead.created', :external_id, CAST(:payload AS jsonb), 'processing', 3, CURRENT_TIMESTAMP - INTERVAL '30 minutes')
+         RETURNING id"
+    );
+    $staleStatement->execute([
+        'tenant_id' => $tenantId,
+        'source_id' => $sourceId,
+        'external_id' => 'STALE-' . $suffix,
+        'payload' => '{"name":"Stale"}',
+    ]);
+    $staleEventId = (int) $staleStatement->fetchColumn();
+
+    $recentStatement = $setup->prepare(
+        "INSERT INTO events (tenant_id, integration_source_id, event_type, external_id, payload, status, attempts, updated_at)
+         VALUES (:tenant_id, :source_id, 'lead.created', :external_id, CAST(:payload AS jsonb), 'processing', 4, CURRENT_TIMESTAMP)
+         RETURNING id"
+    );
+    $recentStatement->execute([
+        'tenant_id' => $tenantId,
+        'source_id' => $sourceId,
+        'external_id' => 'RECENT-' . $suffix,
+        'payload' => '{"name":"Recent"}',
+    ]);
+    $recentEventId = (int) $recentStatement->fetchColumn();
+
+    $repository = new EventRepository($setup);
+    assert($repository->recoverStaleProcessing(15) === 1);
+    $staleEvent = $repository->findById($staleEventId);
+    $recentEvent = $repository->findById($recentEventId);
+    assert($staleEvent !== null && $staleEvent->status === 'pending');
+    assert($staleEvent->attempts === 3);
+    assert($recentEvent !== null && $recentEvent->status === 'processing');
+
+    $recoveredDispatch = (new EventDispatcher($repository, new SimulatedEventProcessor()))->dispatchOnce();
+    assert($recoveredDispatch['status'] === 'processed');
+    $processedStale = $repository->findById($staleEventId);
+    assert($processedStale !== null && $processedStale->attempts === 4);
 
     echo 'EventDispatcherPostgresTest passed.' . PHP_EOL;
 } finally {
@@ -122,6 +174,16 @@ try {
 
     if ($firstConnection->inTransaction()) {
         $firstConnection->rollBack();
+    }
+
+    if ($recentEventId !== null) {
+        $deleteRecent = $setup->prepare('DELETE FROM events WHERE id = :id');
+        $deleteRecent->execute(['id' => $recentEventId]);
+    }
+
+    if ($staleEventId !== null) {
+        $deleteStale = $setup->prepare('DELETE FROM events WHERE id = :id');
+        $deleteStale->execute(['id' => $staleEventId]);
     }
 
     if ($eventId !== null) {

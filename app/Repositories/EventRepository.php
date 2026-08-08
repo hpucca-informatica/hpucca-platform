@@ -196,6 +196,24 @@ final readonly class EventRepository implements EventRepositoryContract
         return $statement->rowCount() === 1;
     }
 
+    public function recoverStaleProcessing(int $timeoutMinutes): int
+    {
+        $statement = $this->connection->prepare(
+            "UPDATE events
+             SET status = 'pending',
+                 available_at = CURRENT_TIMESTAMP,
+                 processed_at = NULL,
+                 failed_at = NULL,
+                 last_error = NULL,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE status = 'processing'
+               AND updated_at < CURRENT_TIMESTAMP - (CAST(:timeout_minutes AS INTEGER) * INTERVAL '1 minute')"
+        );
+        $statement->execute(['timeout_minutes' => max(1, $timeoutMinutes)]);
+
+        return $statement->rowCount();
+    }
+
     /**
      * @param array{tenant_id: int, integration_source_id: int, event_type: string, external_id: string, payload: string, occurred_at: string|null} $data
      * @return array{event: Event, duplicate: bool}
