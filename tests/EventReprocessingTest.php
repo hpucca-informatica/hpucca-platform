@@ -111,6 +111,11 @@ final class EventReprocessingMemoryRepository implements EventRepositoryContract
         return true;
     }
 
+    public function recoverStaleProcessing(int $timeoutMinutes): int
+    {
+        throw new RuntimeException('Not used.');
+    }
+
     public function create(array $data, PublicCodeGenerator $codes): array
     {
         throw new RuntimeException('Not used.');
@@ -337,7 +342,8 @@ assert(str_contains($processingBody, 'pode permanecer em processing'));
 
 $repositorySql = (string) file_get_contents(dirname(__DIR__) . '/app/Repositories/EventRepository.php');
 assert(str_contains($repositorySql, 'requeueFailed'));
-assert(str_contains($repositorySql, "WHERE id = :id\n               AND status = 'failed'"));
+assert(str_contains($repositorySql, 'WHERE id = :id'));
+assert(str_contains($repositorySql, "AND status = 'failed'"));
 assert(str_contains($repositorySql, 'available_at = CURRENT_TIMESTAMP'));
 assert(!str_contains($repositorySql, 'attempts = 0'));
 

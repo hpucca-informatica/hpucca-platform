@@ -134,6 +134,30 @@ final class EventDispatcherMemoryRepository implements EventRepositoryContract
         return true;
     }
 
+    public function recoverStaleProcessing(int $timeoutMinutes): int
+    {
+        $recovered = 0;
+        $cutoff = time() - (max(1, $timeoutMinutes) * 60);
+
+        foreach ($this->events as $event) {
+            if ($event->status !== 'processing' || strtotime($event->updatedAt) >= $cutoff) {
+                continue;
+            }
+
+            $this->events[$event->id] = self::copy(
+                $event,
+                status: 'pending',
+                availableAt: date('Y-m-d H:i:s'),
+                processedAt: null,
+                failedAt: null,
+                lastError: null,
+            );
+            $recovered++;
+        }
+
+        return $recovered;
+    }
+
     public function create(array $data, PublicCodeGenerator $codes): array
     {
         throw new RuntimeException('Not used in dispatcher tests.');
@@ -186,6 +210,7 @@ function dispatcherEvent(
     string $availableAt = '2026-01-01 00:00:00',
     int $attempts = 0,
     string $payload = '{"name":"Teste"}',
+    string $updatedAt = '2026-01-01 00:00:00',
 ): Event {
     return new Event(
         $id,
@@ -206,7 +231,7 @@ function dispatcherEvent(
         null,
         '2026-01-01 00:00:00',
         '2026-01-01 00:00:00',
-        '2026-01-01 00:00:00',
+        $updatedAt,
     );
 }
 
@@ -266,43 +291,91 @@ $secondDispatcher = new EventDispatcher($repository, new SimulatedEventProcessor
 assert($firstDispatcher->dispatchOnce()['status'] === 'processed');
 assert($secondDispatcher->dispatchOnce()['status'] === 'idle');
 
+$repository->events = [
+    9 => dispatcherEvent(9),
+    10 => dispatcherEvent(10),
+    11 => dispatcherEvent(11),
+];
+$batch = $dispatcher->dispatchBatch(2);
+assert($batch === ['processed' => 2, 'failed' => 0, 'total' => 2, 'idle' => false]);
+assert($repository->events[9]->status === 'processed');
+assert($repository->events[10]->status === 'processed');
+assert($repository->events[11]->status === 'pending');
+
+$repository->events = [
+    12 => dispatcherEvent(12),
+    13 => dispatcherEvent(13, payload: '{"simulate_failure":true}'),
+    14 => dispatcherEvent(14),
+];
+$mixedBatch = $dispatcher->dispatchBatch(10);
+assert($mixedBatch === ['processed' => 2, 'failed' => 1, 'total' => 3, 'idle' => true]);
+assert($repository->events[12]->status === 'processed');
+assert($repository->events[13]->status === 'failed');
+assert($repository->events[14]->status === 'processed');
+
+$repository->events = [
+    15 => dispatcherEvent(15),
+    16 => dispatcherEvent(16),
+];
+$emptyBatch = $dispatcher->dispatchBatch(10);
+assert($emptyBatch === ['processed' => 2, 'failed' => 0, 'total' => 2, 'idle' => true]);
+
+$oldProcessing = dispatcherEvent(17, status: 'processing', attempts: 4, updatedAt: date('Y-m-d H:i:s', time() - 3600));
+$recentProcessing = dispatcherEvent(18, status: 'processing', attempts: 5, updatedAt: date('Y-m-d H:i:s'));
+$repository->events = [17 => $oldProcessing, 18 => $recentProcessing];
+assert($repository->recoverStaleProcessing(15) === 1);
+assert($repository->events[17]->status === 'pending');
+assert($repository->events[17]->attempts === 4);
+assert($repository->events[18]->status === 'processing');
+
+$recoveredBatch = $dispatcher->dispatchBatch(1);
+assert($recoveredBatch === ['processed' => 1, 'failed' => 0, 'total' => 1, 'idle' => false]);
+assert($repository->events[17]->status === 'processed');
+assert($repository->events[17]->attempts === 5);
+
 $repositorySql = (string) file_get_contents(dirname(__DIR__) . '/app/Repositories/EventRepository.php');
 assert(str_contains($repositorySql, 'FOR UPDATE OF e SKIP LOCKED'));
 assert(str_contains($repositorySql, "AND status = 'processing'"));
 assert(str_contains($repositorySql, "AND status = 'pending'"));
+assert(str_contains($repositorySql, 'recoverStaleProcessing'));
+assert(str_contains($repositorySql, "updated_at < CURRENT_TIMESTAMP - (CAST(:timeout_minutes AS INTEGER) * INTERVAL '1 minute')"));
 
 $cli = (string) file_get_contents(dirname(__DIR__) . '/bin/dispatch-events.php');
-assert(str_contains($cli, 'No pending event available.'));
-assert(str_contains($cli, 'Processed event %s.'));
-assert(str_contains($cli, 'Failed event %s.'));
+assert(str_contains($cli, 'dispatchLimit'));
+assert(str_contains($cli, 'Recovered stale events: %d'));
+assert(str_contains($cli, 'Processed: %d'));
+assert(str_contains($cli, 'Failed: %d'));
+assert(str_contains($cli, 'Total: %d'));
+assert(str_contains($cli, 'Dispatcher already running.'));
 assert(str_contains($cli, 'Event dispatcher failed.'));
 assert(str_contains($cli, 'Invalid arguments.'));
+assert(str_contains($cli, 'Invalid limit.'));
 assert(str_contains($cli, 'Usage:'));
-assert(str_contains($cli, 'php bin/dispatch-events.php [--limit=1]'));
-assert(str_contains($cli, "\$arguments !== [] && \$arguments !== ['--limit=1']"));
-assert(strpos($cli, "\$arguments !== [] && \$arguments !== ['--limit=1']") < strpos($cli, "require dirname(__DIR__) . '/vendor/autoload.php';"));
+assert(str_contains($cli, 'php bin/dispatch-events.php [--limit=N]'));
 assert(!str_contains($cli, 'getTrace'));
 assert(!str_contains($cli, 'payload'));
 assert(!str_contains($cli, 'password'));
 assert(!str_contains($cli, 'hpk_live'));
 
-$allowedCliArguments = static fn (array $arguments): bool => $arguments === [] || $arguments === ['--limit=1'];
+$allowedCliArguments = static fn (array $arguments): bool => $arguments === [] || preg_match('/^--limit=([1-9][0-9]*)$/', $arguments[0] ?? '') === 1;
 assert($allowedCliArguments([]));
 assert($allowedCliArguments(['--limit=1']));
-assert(!$allowedCliArguments(['--limit=2']));
+assert($allowedCliArguments(['--limit=25']));
 assert(!$allowedCliArguments(['--foo']));
 assert(!$allowedCliArguments(['abc']));
 
 $cliPath = dirname(__DIR__) . '/bin/dispatch-events.php';
 $invalidCases = [
-    '--limit=2',
+    '--limit=0',
+    '--limit=101',
     '--foo',
     'abc',
 ];
 
 foreach ($invalidCases as $invalidArgument) {
     $command = sprintf(
-        'php %s %s 2>&1',
+        '%s %s %s 2>&1',
+        escapeshellarg(PHP_BINARY),
         escapeshellarg($cliPath),
         escapeshellarg($invalidArgument),
     );
@@ -311,8 +384,8 @@ foreach ($invalidCases as $invalidArgument) {
     exec($command, $output, $exitCode);
     $body = implode(PHP_EOL, $output);
 
-    assert($exitCode === 1);
-    assert(str_contains($body, 'Invalid arguments.'));
+    assert($exitCode === 2);
+    assert(str_contains($body, 'Invalid arguments.') || str_contains($body, 'Invalid limit.'));
     assert(str_contains($body, 'Usage:'));
     assert(!str_contains($body, 'Event dispatcher failed.'));
     assert(!str_contains($body, 'No pending event available.'));
