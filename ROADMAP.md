@@ -101,7 +101,6 @@ Fora deste Sprint:
 ## Evolucoes Futuras
 
 - historico detalhado de execucoes;
-- politica de retry automatico com limites;
 - preparacao para destino real.
 
 ## Sprint 6.3 - Execucao Automatica Segura do Dispatcher
@@ -139,3 +138,32 @@ Fora deste Sprint:
 - Redis, RabbitMQ, Kafka ou SQS;
 - dashboard de metricas;
 - processamento via navegador.
+
+## Sprint 6.4 - Retry Inteligente e Conservador
+
+O Sprint 6.4 adiciona retry automatico somente para falhas transientes conhecidas durante a execucao do Dispatcher. A politica usa `EVENT_RETRY_MAX_ATTEMPTS` e `EVENT_RETRY_DELAYS_SECONDS`.
+
+Fluxo transiente:
+
+- `pending -> processing`;
+- falha transiente com tentativas restantes: `processing -> pending`;
+- `available_at` recebe o horario da proxima tentativa;
+- a proxima reserva incrementa `attempts`;
+- ao atingir o maximo configurado, a falha transiente vira `failed`.
+
+Falhas permanentes e excecoes inesperadas nao entram em retry automatico. Elas passam para `failed` com mensagem sanitizada e sem payload, segredo, SQL ou stack trace.
+
+O retry automatico nao substitui o reprocessamento manual. O reprocessamento manual continua sendo uma acao HTTP owner-only para eventos ja `failed`; o retry automatico acontece apenas no CLI, durante o processamento de uma falha transiente.
+
+Fora deste Sprint:
+
+- HTTP client externo;
+- n8n;
+- WhatsApp;
+- dead-letter queue;
+- historico detalhado de tentativas;
+- worker continuo;
+- supervisor;
+- Redis, RabbitMQ, Kafka ou SQS;
+- dashboard de metricas;
+- migration.
