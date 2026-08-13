@@ -155,6 +155,11 @@ DB_NAME=
 DB_USER=
 DB_PASSWORD=
 DB_SSLMODE=prefer
+EVENT_DISPATCH_LIMIT_DEFAULT=10
+EVENT_DISPATCH_LIMIT_MAX=100
+EVENT_PROCESSING_TIMEOUT_MINUTES=15
+EVENT_RETRY_MAX_ATTEMPTS=3
+EVENT_RETRY_DELAYS_SECONDS=60,300
 ```
 
 Configuration is loaded through `HPucca\Platform\Core\Config`:
@@ -521,9 +526,9 @@ Allowed transitions in this Sprint:
 - `processing -> processed`;
 - `processing -> failed`.
 
-Successful processing sets `processed_at`, clears `failed_at` and `last_error`, and preserves the incremented `attempts`. Failed processing sets `failed_at`, keeps `processed_at` null, and stores only a sanitized error such as `Event processing failed.` without stack trace, credentials, API keys, DSN, or payload content.
+Successful processing sets `processed_at`, clears `failed_at` and `last_error`, and preserves the incremented `attempts`. Failed processing sets `failed_at`, keeps `processed_at` null, and stores only a sanitized error such as `Permanent event processing failure.` or `Unexpected event processing failure.` without stack trace, credentials, API keys, DSN, or payload content.
 
-The initial processor is `SimulatedEventProcessor`. It succeeds by default and fails only when the stored JSON payload contains `"simulate_failure": true`, a temporary test hook for the dispatcher that will be replaced when a real destination exists.
+The initial processor is `SimulatedEventProcessor`. It succeeds by default and uses `simulate_failure` only as a temporary test hook for the dispatcher. `"simulate_failure": "transient"` schedules automatic retry while attempts remain below the configured maximum, `"simulate_failure": "permanent"` fails definitively, and boolean `true` is kept as a transient compatibility signal.
 
 ## Manual Event Reprocessing
 
@@ -573,8 +578,9 @@ Summary output is intentionally small and safe:
 ```text
 Recovered stale events: 0
 Processed: 12
+Retried: 2
 Failed: 1
-Total: 13
+Total: 15
 ```
 
 No payload, token, API key, DSN, SQL detail, stack trace, or event internals are printed.
@@ -608,6 +614,34 @@ php /var/www/html/bin/dispatch-events.php --limit=25
 ```
 
 Use the PHP binary from the deployed container/app image and the project directory that contains `bin/dispatch-events.php`. A one-minute interval is enough initially because each run is bounded, lock-protected, and exits cleanly. This is still cron-driven scheduling, not a continuous worker: the process starts, handles a limited batch, and exits.
+
+## Conservative Event Retry
+
+Sprint 6.4 adds an automatic retry policy for transient processing failures only. It does not add external HTTP delivery, n8n, WhatsApp, dead-letter queues, backoff algorithms beyond fixed configured delays, max-attempt history tables, a continuous worker, Redis, RabbitMQ, Kafka, supervisor integration, or metrics dashboards.
+
+Configuration:
+
+```env
+EVENT_RETRY_MAX_ATTEMPTS=3
+EVENT_RETRY_DELAYS_SECONDS=60,300
+```
+
+`EVENT_RETRY_MAX_ATTEMPTS` is the total number of dispatcher reservations allowed for the event, not the number of retries after the first failure. With the default `3`, a transient failure on attempt `1` is retried, attempt `2` is retried, and attempt `3` becomes a definitive `failed` state. The maximum is bounded to prevent absurd retry loops.
+
+`EVENT_RETRY_DELAYS_SECONDS` is a comma-separated list of non-negative delays. The first retry uses the first value, the second retry uses the second value, and if there are fewer delays than retry slots the last configured delay is reused. Empty or invalid delay lists are rejected by the retry policy instead of being treated as an unsafe immediate retry loop.
+
+Retry behavior:
+
+- transient failure while `attempts < EVENT_RETRY_MAX_ATTEMPTS`: `processing -> pending`;
+- transient failure at the max attempt: `processing -> failed`;
+- permanent failure: `processing -> failed`;
+- unexpected exception: `processing -> failed` with a generic sanitized error.
+
+When a transient retry is scheduled, the repository updates only the retry state: `status = pending`, `available_at = now + delay`, `processed_at = NULL`, `failed_at = NULL`, sanitized `last_error`, and `updated_at = CURRENT_TIMESTAMP`. It does not reset `attempts`, does not alter `payload`, `code`, tenant, source, `event_type`, or `external_id`. The next dispatcher reservation after `available_at` increments `attempts` normally.
+
+Automatic retry is different from manual reprocessing. Automatic retry happens inside the CLI dispatcher after a transient processor exception. Manual reprocessing remains owner-only HTTP `POST /admin/events/{id}/reprocess`, applies only to already `failed` events, and simply returns the event to `pending` for a future dispatcher run. The web button never calls the dispatcher directly.
+
+Stale processing recovery is also separate. Stale recovery handles old rows stuck in `processing` because a process died or failed outside the normal transition. Retry handles known transient processor failures that were caught during a live dispatcher execution.
 
 ### Tenant Isolation
 

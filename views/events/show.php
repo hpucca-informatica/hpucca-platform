@@ -58,6 +58,14 @@ if ($event instanceof Event) {
         </section>
     <?php endif; ?>
 
+    <?php if ($event->status === 'pending' && $event->attempts > 0): ?>
+        <section class="notice-card">
+            <h2>Nova tentativa agendada.</h2>
+            <p>Este evento voltara ao Dispatcher quando estiver disponivel.</p>
+            <p>Disponivel em: <?= $e($formatDate($event->availableAt)) ?></p>
+        </section>
+    <?php endif; ?>
+
     <?php if ($event->status === 'failed'): ?>
         <section class="notice-card">
             <h2>Reprocessamento manual</h2>

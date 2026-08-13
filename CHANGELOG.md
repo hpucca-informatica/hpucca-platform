@@ -9,6 +9,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), e este
 ### Adicionado
 
 - Dispatcher basico manual de eventos para processar um evento pendente por execucao via `php bin/dispatch-events.php`.
+- Retry automatico conservador para falhas transientes do dispatcher, com `EVENT_RETRY_MAX_ATTEMPTS` e `EVENT_RETRY_DELAYS_SECONDS`.
+- Nova transicao segura `processing -> pending` para retry automatico, preservando `attempts`, payload, codigo publico, tenant, fonte, `event_type` e `external_id`.
+- Classificacao de falhas simuladas em transientes e permanentes por `SimulatedEventProcessor`.
+- Saida resumida do scheduler com contagem `Retried`.
+- Aviso administrativo para eventos `pending` com nova tentativa agendada.
 - Execucao agendada segura do Dispatcher com `--limit=N`, limite padrao configuravel e limite maximo configuravel.
 - Loop em lote que continua apos falhas individuais e resume `processed`, `failed`, `total` e eventos stale recuperados sem imprimir payloads.
 - `DispatcherLock` com PostgreSQL advisory lock para impedir duas execucoes globais simultaneas do scheduler.
@@ -79,6 +84,9 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), e este
 - Eventos duplicados retornam HTTP 200 com `status = duplicate` e o `event_code` existente para permitir reenvio idempotente.
 - O dispatcher nao processa dentro do webhook; o webhook apenas persiste eventos `pending` e o CLI executa a fila manualmente.
 - Cron inicia execucoes curtas e limitadas do dispatcher; isso nao e worker continuo nem daemon.
+- Retry automatico vale somente para falha transiente conhecida; falha permanente e excecao inesperada viram `failed`.
+- `available_at` controla quando a nova tentativa automatica volta a ser elegivel, e a proxima reserva incrementa `attempts`.
+- Manual reprocessing e retry automatico continuam fluxos distintos: HTTP recoloca `failed` em fila, CLI agenda retry transiente durante processamento.
 - Advisory lock protege a execucao global do scheduler, enquanto `SKIP LOCKED` continua protegendo a reserva individual de eventos.
 - Eventos `processing` antigos podem voltar para `pending` por timeout porque processos podem morrer depois da reserva.
 - Reprocessar manualmente nao chama o Dispatcher via HTTP; apenas recoloca evento `failed` na fila para uma execucao posterior do CLI.

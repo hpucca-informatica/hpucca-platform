@@ -92,6 +92,11 @@ final class EventReprocessingMemoryRepository implements EventRepositoryContract
         return false;
     }
 
+    public function scheduleRetry(int $eventId, DateTimeImmutable $availableAt, string $sanitizedError): bool
+    {
+        return false;
+    }
+
     public function requeueFailed(int $eventId): bool
     {
         $event = $this->events[$eventId] ?? null;
@@ -339,6 +344,11 @@ foreach (['pending', 'processing', 'processed'] as $status) {
 $processingBody = View::render('events/show.php', ['event' => reprocessingEvent(5, 'processing')]);
 assert(str_contains($processingBody, 'Evento em processamento.'));
 assert(str_contains($processingBody, 'pode permanecer em processing'));
+
+$scheduledRetryBody = View::render('events/show.php', ['event' => reprocessingEvent(6, 'pending', attempts: 2)]);
+assert(str_contains($scheduledRetryBody, 'Nova tentativa agendada.'));
+assert(str_contains($scheduledRetryBody, 'voltaria') === false);
+assert(str_contains($scheduledRetryBody, 'voltara ao Dispatcher'));
 
 $repositorySql = (string) file_get_contents(dirname(__DIR__) . '/app/Repositories/EventRepository.php');
 assert(str_contains($repositorySql, 'requeueFailed'));
