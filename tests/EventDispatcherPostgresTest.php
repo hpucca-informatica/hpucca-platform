@@ -5,6 +5,7 @@ declare(strict_types=1);
 use HPucca\Platform\Repositories\EventRepository;
 use HPucca\Platform\Services\DispatcherLock;
 use HPucca\Platform\Services\EventDispatcher;
+use HPucca\Platform\Services\RetryPolicy;
 use HPucca\Platform\Services\SimulatedEventProcessor;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
@@ -61,6 +62,7 @@ $sourceId = null;
 $eventId = null;
 $staleEventId = null;
 $recentEventId = null;
+$retryEventId = null;
 
 try {
     $tenantStatement = $setup->prepare(
@@ -166,8 +168,138 @@ try {
     $processedStale = $repository->findById($staleEventId);
     assert($processedStale !== null && $processedStale->attempts === 4);
 
+    $retryStatement = $setup->prepare(
+        "INSERT INTO events (tenant_id, integration_source_id, event_type, external_id, payload, status, attempts)
+         VALUES (:tenant_id, :source_id, 'lead.created', :external_id, CAST(:payload AS jsonb), 'processing', 1)
+         RETURNING id"
+    );
+    $retryStatement->execute([
+        'tenant_id' => $tenantId,
+        'source_id' => $sourceId,
+        'external_id' => 'RETRY-' . $suffix,
+        'payload' => '{"name":"Retry"}',
+    ]);
+    $retryEventId = (int) $retryStatement->fetchColumn();
+
+    $futureAvailableAt = new DateTimeImmutable('+5 minutes');
+    assert($repository->scheduleRetry($retryEventId, $futureAvailableAt, 'Transient event processing failure.'));
+    assert(!$repository->scheduleRetry($retryEventId, $futureAvailableAt, 'Transient event processing failure.'));
+
+    $scheduledRetry = $repository->findById($retryEventId);
+    assert($scheduledRetry !== null);
+    assert($scheduledRetry->status === 'pending');
+    assert($scheduledRetry->attempts === 1);
+    assert($scheduledRetry->processedAt === null);
+    assert($scheduledRetry->failedAt === null);
+    assert($scheduledRetry->lastError === 'Transient event processing failure.');
+
+    $futureReservation = $repository->reserveNextPending();
+    assert($futureReservation === null || $futureReservation->id !== $retryEventId);
+
+    $makeRetryDue = $setup->prepare("UPDATE events SET available_at = CURRENT_TIMESTAMP - INTERVAL '1 minute' WHERE id = :id");
+    $makeRetryDue->execute(['id' => $retryEventId]);
+
+    $dueRetry = $repository->reserveNextPending();
+    assert($dueRetry !== null);
+    assert($dueRetry->id === $retryEventId);
+    assert($dueRetry->status === 'processing');
+    assert($dueRetry->attempts === 2);
+
+    $setup->beginTransaction();
+
+    try {
+        $transientStatement = $setup->prepare(
+            "INSERT INTO events (tenant_id, integration_source_id, event_type, external_id, payload, status, attempts, available_at)
+             VALUES (:tenant_id, :source_id, 'lead.created', :external_id, CAST(:payload AS jsonb), 'pending', 0, TIMESTAMP '1900-01-01 00:00:00')
+             RETURNING id"
+        );
+        $transientPayload = '{"simulate_failure":"transient","name":"Postgres transient"}';
+        $transientStatement->execute([
+            'tenant_id' => $tenantId,
+            'source_id' => $sourceId,
+            'external_id' => 'TRANSIENT-' . $suffix,
+            'payload' => $transientPayload,
+        ]);
+        $transientEventId = (int) $transientStatement->fetchColumn();
+        $transientRepository = new EventRepository($setup);
+        $transientBefore = $transientRepository->findById($transientEventId);
+        assert($transientBefore !== null);
+
+        $transientDispatch = (new EventDispatcher(
+            $transientRepository,
+            new SimulatedEventProcessor(),
+            new RetryPolicy(3, [60, 300]),
+        ))->dispatchOnce();
+        assert($transientDispatch['status'] === 'retried');
+        assert($transientDispatch['event'] !== null);
+        assert($transientDispatch['event']->id === $transientEventId);
+
+        $transientAfter = $transientRepository->findById($transientEventId);
+        assert($transientAfter !== null);
+        assert($transientAfter->status === 'pending');
+        assert($transientAfter->attempts === 1);
+        assert(strtotime($transientAfter->availableAt) > time());
+        assert($transientAfter->processedAt === null);
+        assert($transientAfter->failedAt === null);
+        assert($transientAfter->lastError === 'Transient event processing failure.');
+        assert($transientAfter->payload === $transientPayload);
+        assert($transientAfter->code === $transientBefore->code);
+
+        $earlyReservation = $transientRepository->reserveNextPending();
+        assert($earlyReservation === null || $earlyReservation->id !== $transientEventId);
+    } finally {
+        $setup->rollBack();
+    }
+
+    $setup->beginTransaction();
+
+    try {
+        $maxAttemptsStatement = $setup->prepare(
+            "INSERT INTO events (tenant_id, integration_source_id, event_type, external_id, payload, status, attempts, available_at)
+             VALUES (:tenant_id, :source_id, 'lead.created', :external_id, CAST(:payload AS jsonb), 'pending', 2, TIMESTAMP '1900-01-01 00:00:00')
+             RETURNING id"
+        );
+        $maxAttemptsPayload = '{"simulate_failure":"transient","name":"Postgres max attempts"}';
+        $maxAttemptsStatement->execute([
+            'tenant_id' => $tenantId,
+            'source_id' => $sourceId,
+            'external_id' => 'MAX-ATTEMPTS-' . $suffix,
+            'payload' => $maxAttemptsPayload,
+        ]);
+        $maxAttemptsEventId = (int) $maxAttemptsStatement->fetchColumn();
+        $maxAttemptsRepository = new EventRepository($setup);
+        $maxAttemptsBefore = $maxAttemptsRepository->findById($maxAttemptsEventId);
+        assert($maxAttemptsBefore !== null);
+
+        $maxAttemptsDispatch = (new EventDispatcher(
+            $maxAttemptsRepository,
+            new SimulatedEventProcessor(),
+            new RetryPolicy(3, [60, 300]),
+        ))->dispatchOnce();
+        assert($maxAttemptsDispatch['status'] === 'failed');
+        assert($maxAttemptsDispatch['event'] !== null);
+        assert($maxAttemptsDispatch['event']->id === $maxAttemptsEventId);
+
+        $maxAttemptsAfter = $maxAttemptsRepository->findById($maxAttemptsEventId);
+        assert($maxAttemptsAfter !== null);
+        assert($maxAttemptsAfter->status === 'failed');
+        assert($maxAttemptsAfter->attempts === 3);
+        assert(strtotime($maxAttemptsAfter->availableAt) < time());
+        assert($maxAttemptsAfter->processedAt === null);
+        assert($maxAttemptsAfter->failedAt !== null);
+        assert($maxAttemptsAfter->lastError === 'Transient event processing failure.');
+        assert($maxAttemptsAfter->payload === $maxAttemptsPayload);
+        assert($maxAttemptsAfter->code === $maxAttemptsBefore->code);
+    } finally {
+        $setup->rollBack();
+    }
+
     echo 'EventDispatcherPostgresTest passed.' . PHP_EOL;
 } finally {
+    if ($setup->inTransaction()) {
+        $setup->rollBack();
+    }
+
     if ($secondConnection->inTransaction()) {
         $secondConnection->rollBack();
     }
@@ -179,6 +311,11 @@ try {
     if ($recentEventId !== null) {
         $deleteRecent = $setup->prepare('DELETE FROM events WHERE id = :id');
         $deleteRecent->execute(['id' => $recentEventId]);
+    }
+
+    if ($retryEventId !== null) {
+        $deleteRetry = $setup->prepare('DELETE FROM events WHERE id = :id');
+        $deleteRetry->execute(['id' => $retryEventId]);
     }
 
     if ($staleEventId !== null) {
