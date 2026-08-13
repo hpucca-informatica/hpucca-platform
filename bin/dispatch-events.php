@@ -79,6 +79,7 @@ try {
 
     echo sprintf('Recovered stale events: %d%s', $recovered, PHP_EOL);
     echo sprintf('Processed: %d%s', $result['processed'], PHP_EOL);
+    echo sprintf('Retried: %d%s', $result['retried'], PHP_EOL);
     echo sprintf('Failed: %d%s', $result['failed'], PHP_EOL);
     echo sprintf('Total: %d%s', $result['total'], PHP_EOL);
 

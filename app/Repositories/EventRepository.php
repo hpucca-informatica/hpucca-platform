@@ -214,6 +214,28 @@ final readonly class EventRepository implements EventRepositoryContract
         return $statement->rowCount();
     }
 
+    public function scheduleRetry(int $eventId, DateTimeImmutable $availableAt, string $sanitizedError): bool
+    {
+        $statement = $this->connection->prepare(
+            "UPDATE events
+             SET status = 'pending',
+                 available_at = :available_at,
+                 processed_at = NULL,
+                 failed_at = NULL,
+                 last_error = :last_error,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id
+               AND status = 'processing'"
+        );
+        $statement->execute([
+            'id' => $eventId,
+            'available_at' => $availableAt->format('Y-m-d H:i:sP'),
+            'last_error' => substr($sanitizedError, 0, 1000),
+        ]);
+
+        return $statement->rowCount() === 1;
+    }
+
     /**
      * @param array{tenant_id: int, integration_source_id: int, event_type: string, external_id: string, payload: string, occurred_at: string|null} $data
      * @return array{event: Event, duplicate: bool}
