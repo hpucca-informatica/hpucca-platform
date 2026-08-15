@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use HPucca\Platform\Controllers\AuthController;
+use HPucca\Platform\Controllers\AutomationController;
 use HPucca\Platform\Controllers\CompanyController;
 use HPucca\Platform\Controllers\DashboardController;
 use HPucca\Platform\Controllers\EventController;
@@ -265,6 +266,14 @@ $router->post('/admin/integration-sources/{id}/deactivate', static function (Req
     return (new AuthMiddleware(new AuthService()))->handle(
         static fn (): Response => (new OwnerMiddleware())->handle(
             static fn (): Response => (new IntegrationSourceController(new Database(Config::get('database'))))->deactivate($request)
+        )
+    );
+});
+
+$router->get('/admin/automation', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new AutomationController(new Database(Config::get('database'))))->index($request)
         )
     );
 });

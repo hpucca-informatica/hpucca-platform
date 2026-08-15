@@ -25,6 +25,7 @@ if (($user ?? null) instanceof \HPucca\Platform\Models\User) {
 
 if ($isOwner) {
     $menu['Automacao'] = [
+        ['key' => 'automation', 'label' => 'Visao geral', 'href' => '/admin/automation'],
         ['key' => 'integration-sources', 'label' => 'Fontes de integracao', 'href' => '/admin/integration-sources'],
         ['key' => 'events', 'label' => 'Eventos', 'href' => '/admin/events'],
     ];

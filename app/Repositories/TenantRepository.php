@@ -7,7 +7,7 @@ namespace HPucca\Platform\Repositories;
 use HPucca\Platform\Models\Tenant;
 use PDO;
 
-final readonly class TenantRepository
+final readonly class TenantRepository implements TenantRepositoryContract
 {
     public function __construct(
         private PDO $connection,
