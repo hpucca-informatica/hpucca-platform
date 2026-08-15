@@ -167,3 +167,37 @@ Fora deste Sprint:
 - Redis, RabbitMQ, Kafka ou SQS;
 - dashboard de metricas;
 - migration.
+
+## Sprint 6.5 - Observabilidade Operacional de Eventos
+
+O Sprint 6.5 cria uma visao operacional simples do pipeline de eventos em `GET /admin/automation`, restrita a usuarios `owner`. A tela usa somente PostgreSQL, repositories, service e views administrativas existentes. Nao ha infraestrutura externa de observabilidade.
+
+Metricas principais:
+
+- eventos recebidos no periodo;
+- processados;
+- falhos;
+- pendentes;
+- em `processing`;
+- em retry agendado;
+- taxa de sucesso;
+- attempts medio dos eventos finalizados.
+
+Definicoes:
+
+- Periodo usa `received_at` como referencia principal.
+- Retry agendado e `status = pending AND attempts > 0 AND available_at > CURRENT_TIMESTAMP`.
+- Taxa de sucesso e `processed / (processed + failed)`, sem pending, processing ou retry no denominador.
+- Processing possivelmente stale e calculado por idade de `updated_at` comparada com `EVENT_PROCESSING_TIMEOUT_MINUTES`.
+
+A tela tambem mostra ultimas falhas, proximos retries, eventos em processing e top attempts. Todas as listas sao limitadas e nao exibem payload, API key, hash, stack trace ou credenciais. Filtros por tenant, fonte, `event_type`, status e periodo funcionam de forma combinada por prepared statements.
+
+Fora deste Sprint:
+
+- Grafana, Prometheus, OpenTelemetry, Elastic ou Loki;
+- alertas por e-mail, WhatsApp ou notificacoes;
+- historico detalhado de tentativas;
+- materialized views;
+- tabela nova de metricas;
+- Redis, filas externas ou worker continuo;
+- qualquer acao POST no dashboard.

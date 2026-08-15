@@ -8,6 +8,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), e este
 
 ### Adicionado
 
+- Dashboard operacional owner-only em `GET /admin/automation` para observabilidade simples do pipeline de eventos.
+- Cards de eventos recebidos, processados, falhos, pendentes, em `processing`, retry agendado, taxa de sucesso e attempts medio de eventos finalizados.
+- Filtros combinados por periodo, tenant, fonte, `event_type` e status, usando consultas preparadas.
+- Listas operacionais de ultimas falhas, proximos retries, eventos em processing e eventos com mais tentativas, limitadas a 10 registros e sem payload.
+- Grafico leve em HTML/CSS de eventos por dia no periodo, sem biblioteca externa ou CDN.
+- `EventMetricsRepository` e `AutomationDashboardService` para separar SQL, normalizacao de filtros, datas e view model.
+- Testes unitarios da observabilidade e teste PostgreSQL opcional com `RUN_POSTGRES_INTEGRATION_TESTS=1`.
 - Dispatcher basico manual de eventos para processar um evento pendente por execucao via `php bin/dispatch-events.php`.
 - Retry automatico conservador para falhas transientes do dispatcher, com `EVENT_RETRY_MAX_ATTEMPTS` e `EVENT_RETRY_DELAYS_SECONDS`.
 - Nova transicao segura `processing -> pending` para retry automatico, preservando `attempts`, payload, codigo publico, tenant, fonte, `event_type` e `external_id`.
@@ -81,6 +88,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), e este
 
 ### Decisoes
 
+- Observabilidade do Sprint 6.5 usa PostgreSQL como fonte, painel administrativo existente e agregacoes simples, sem stack externa de monitoramento.
+- Metricas do dashboard usam `received_at` como referencia do periodo; retry agendado usa a definicao operacional `pending + attempts > 0 + available_at futuro`.
+- Taxa de sucesso exclui pendentes, processing e retries do denominador e mostra valor neutro quando nao ha eventos finalizados.
+- Stale processing na tela e apenas informativo; a recuperacao continua fora da UI e pertence ao dispatcher.
 - Eventos duplicados retornam HTTP 200 com `status = duplicate` e o `event_code` existente para permitir reenvio idempotente.
 - O dispatcher nao processa dentro do webhook; o webhook apenas persiste eventos `pending` e o CLI executa a fila manualmente.
 - Cron inicia execucoes curtas e limitadas do dispatcher; isso nao e worker continuo nem daemon.

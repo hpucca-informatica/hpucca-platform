@@ -643,6 +643,59 @@ Automatic retry is different from manual reprocessing. Automatic retry happens i
 
 Stale processing recovery is also separate. Stale recovery handles old rows stuck in `processing` because a process died or failed outside the normal transition. Retry handles known transient processor failures that were caught during a live dispatcher execution.
 
+## Event Operational Observability
+
+Sprint 6.5 adds an owner-only operational dashboard for the event pipeline using only PostgreSQL aggregates and the existing admin panel. It does not add Grafana, Prometheus, OpenTelemetry, Loki, Elastic, Redis, external queues, notifications, alerts, or a metrics history table.
+
+Route:
+
+```http
+GET /admin/automation
+```
+
+The route uses session authentication plus `OwnerMiddleware`. There is no `POST` action on this page. It is read-only and never displays event payloads, API keys, API key hashes, credentials, stack traces, or raw SQL errors.
+
+The dashboard cards show:
+
+- events received in the period;
+- processed events;
+- failed events;
+- pending events;
+- events currently in `processing`;
+- events with scheduled retry;
+- success rate;
+- average `attempts` for finalized events.
+
+Definitions:
+
+- Period metrics use `events.received_at` as the primary timestamp. Date filters are interpreted in `APP_TIMEZONE` and sent to PostgreSQL as real timestamp values, not formatted display strings.
+- `processed`, `failed`, `pending`, and `processing` are counts by the current `events.status` inside the selected `received_at` period.
+- Scheduled retry means `status = 'pending' AND attempts > 0 AND available_at > CURRENT_TIMESTAMP`. It is not a new database status; it is a subset of pending events.
+- Success rate is `processed / (processed + failed)`. Pending, processing, and scheduled retry events are excluded from the denominator. If `processed + failed = 0`, the UI shows `-` instead of an artificial 100%.
+- Average attempts uses only finalized events (`processed` and `failed`) in the selected period.
+- Stale processing is informational only. The dashboard labels an event as possibly stale when `status = processing` and its `updated_at` age is greater than or equal to `EVENT_PROCESSING_TIMEOUT_MINUTES`. The dashboard does not recover stale rows; recovery remains in the dispatcher flow.
+
+Filters:
+
+- period: today, last 24 hours, last 7 days, last 30 days, or custom date range;
+- tenant/company;
+- integration source;
+- `event_type`;
+- status.
+
+Filters are combined with prepared statements. Owners may view all companies, or narrow the view by tenant/source/type/status. Selecting a source and tenant together still respects the real event relations (`events.tenant_id` and `events.integration_source_id`); mismatched filters simply produce no rows.
+
+Operational lists are limited to 10 rows:
+
+- latest failures, ordered by `failed_at DESC`;
+- next scheduled retries, ordered by `available_at ASC`;
+- events in processing, with recent/stale label;
+- events with most attempts, ordered by `attempts DESC, updated_at DESC`.
+
+The chart is implemented with HTML/CSS only and groups events by day in the application timezone. It shows received, processed, and failed counts without adding a chart dependency or CDN.
+
+Current performance posture: existing indexes cover `events.received_at`, `events.status, available_at`, `events.tenant_id`, and `events.event_type`. Sprint 6.5 does not add a migration. If volume grows, a likely future index to evaluate is a composite index matching frequent dashboard filters, such as `(tenant_id, integration_source_id, received_at)`, but this should be validated against real query plans before migration.
+
 ### Tenant Isolation
 
 An API key belongs to exactly one integration source, and that source belongs to exactly one tenant. The webhook derives `tenant_id` from the authenticated source, never from user-submitted JSON. A source from one tenant cannot create events for another tenant.
