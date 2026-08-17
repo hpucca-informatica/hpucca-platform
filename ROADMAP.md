@@ -228,7 +228,7 @@ POST /admin/integration-destinations/{id}/activate
 POST /admin/integration-destinations/{id}/deactivate
 ```
 
-`EventProcessorResolver` resolve `type = n8n` para `N8nEventProcessor`, mas o processador n8n e apenas placeholder. Se chamado, ele falha permanentemente com mensagem sanitizada e nao faz HTTP, cURL, webhook, consulta a credential, retry, banco ou mutacao de evento.
+`EventProcessorResolver` resolve `type = n8n` para `N8nEventProcessor`. No Sprint 6.6A, esse processador era apenas placeholder: se chamado, falhava permanentemente com mensagem sanitizada e nao fazia HTTP, cURL, webhook, consulta a credential, retry, banco ou mutacao de evento. No Sprint 6.6B, o `N8nEventProcessor` passou a utilizar transporte HTTP real por `HttpClientContract` e `CurlHttpClient`.
 
 Fora deste Sprint:
 
@@ -244,3 +244,67 @@ Fora deste Sprint:
 - rate limit;
 - retry HTTP real;
 - filas externas.
+
+## Sprint 6.6B - Transporte HTTP Real para n8n
+
+O Sprint 6.6B implementa o transporte HTTP real para `IntegrationDestination type = n8n`, usando a coluna `integration_destinations.config JSONB` existente. Nao ha migration nova.
+
+Config n8n nao sensivel:
+
+```json
+{
+  "webhook_url": "https://n8n.example.com/webhook/hpucca-events",
+  "timeout_seconds": 10
+}
+```
+
+`webhook_url` e obrigatorio. Em `APP_ENV=production`, HTTPS e obrigatorio. A validacao SSRF basica rejeita localhost, loopback, IPs privados RFC1918, link-local, `169.254.0.0/16`, `0.0.0.0`, `::1`, host vazio, URL invalida, esquemas nao HTTP(S) e userinfo (`https://user:pass@host`). DNS rebinding fica documentado como limitacao fora deste sprint.
+
+`timeout_seconds` e inteiro, default `10`, minimo `1` e maximo `30`.
+
+Quem faz o que:
+
+- Source representa a origem do evento.
+- Destination representa o destino.
+- Resolver escolhe o processor pelo tipo do destino.
+- Processor n8n monta envelope, valida config e chama HTTP.
+- HttpClientContract abstrai o transporte.
+- CurlHttpClient faz `POST` JSON com cURL nativo, timeout e corpo de resposta limitado.
+- Dispatcher reserva e marca sucesso/falha, sem conhecer n8n.
+- RetryPolicy decide retry apos falha transiente.
+- Scheduler executa apenas eventos elegiveis e stale recovery.
+
+Envelope enviado:
+
+```json
+{
+  "event_code": "EVT000012",
+  "event_type": "lead.created",
+  "external_id": "LEAD-123",
+  "tenant_code": "TEN000001",
+  "source_code": "SRC000002",
+  "destination_code": "DST000001",
+  "occurred_at": "2026-08-17T13:00:00-03:00",
+  "data": {}
+}
+```
+
+O processor nao envia IDs internos, API key hash, config completa, segredo, sessao, stack trace, Authorization header, bearer token ou HMAC. O limite de payload enviado e `256 KB`; se exceder, a falha e permanente antes do HTTP.
+
+Classificacao:
+
+- `2xx`: sucesso, o Dispatcher marca `processed`.
+- transporte, `408`, `425`, `429`, `500`, `502`, `503`, `504`: falha transiente, entregue ao RetryPolicy.
+- destination ausente, inactive, config invalida, URL rejeitada, payload grande, `400`, `401`, `403`, `404`, `405`, `410`, demais `4xx` e status inesperado: falha permanente.
+- excecao desconhecida: falha permanente conservadora.
+
+Teste HTTP real e opt-in por `RUN_N8N_HTTP_INTEGRATION_TESTS=1` e `N8N_TEST_WEBHOOK_URL`. Sem flag, o teste pula explicitamente.
+
+Fora deste Sprint:
+
+- HMAC;
+- bearer token, API token, OAuth ou credential vault;
+- multiplos destinos, fan-out ou roteamento por `event_type`;
+- circuit breaker, rate limit, jitter ou backoff por destino;
+- WhatsApp Cloud API;
+- workflow n8n complexo.
