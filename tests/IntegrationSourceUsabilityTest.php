@@ -5,6 +5,7 @@ declare(strict_types=1);
 use HPucca\Platform\Core\View;
 use HPucca\Platform\Core\ViewHelper;
 use HPucca\Platform\Models\Event;
+use HPucca\Platform\Models\IntegrationDestination;
 use HPucca\Platform\Models\IntegrationSource;
 use HPucca\Platform\Models\Tenant;
 use HPucca\Platform\Services\FlashService;
@@ -85,12 +86,14 @@ assert($consumedFlash[1] === ['type' => 'success', 'message' => 'Mensagem tipada
 assert(FlashService::consume() === []);
 
 $tenant = new Tenant(1, 'TEN000001', 'Empresa A', 'empresa-a', 'active', '2026-01-01', '2026-01-01');
-$source = new IntegrationSource(1, 'SRC000001', 1, 'Empresa A', 'active', 'Fonte Atual', 'slug-existente', 'hash', 'active', null, '2026-01-01', '2026-01-01');
+$destination = new IntegrationDestination(1, 'DST000001', 1, 'Empresa A', 'active', 'Destino n8n', 'destino-n8n', 'n8n', 'active', '{}', '2026-01-01', '2026-01-01');
+$source = new IntegrationSource(1, 'SRC000001', 1, 'Empresa A', 'active', 'Fonte Atual', 'slug-existente', 'hash', 'active', null, 1, 'DST000001', 'Destino n8n', 'n8n', 'active', '2026-01-01', '2026-01-01');
 
 $formBody = View::render('integration-sources/create.php', [
     'values' => ['tenant_id' => '', 'name' => '', 'slug' => '', 'status' => 'active'],
     'errors' => [],
     'tenants' => [$tenant],
+    'destinations' => [],
     'csrfField' => '<input type="hidden" name="_csrf" value="token">',
 ]);
 assert(str_contains($formBody, 'data-slug-source'));
@@ -100,12 +103,14 @@ assert(!str_contains($formBody, 'readonly'));
 
 $editBody = View::render('integration-sources/edit.php', [
     'source' => $source,
-    'values' => ['tenant_id' => '1', 'name' => 'Fonte Atual', 'slug' => 'slug-existente', 'status' => 'active'],
+    'values' => ['tenant_id' => '1', 'name' => 'Fonte Atual', 'slug' => 'slug-existente', 'status' => 'active', 'destination_id' => '1'],
     'errors' => [],
     'tenants' => [$tenant],
+    'destinations' => [$destination],
     'csrfField' => '<input type="hidden" name="_csrf" value="token">',
 ]);
 assert(str_contains($editBody, 'value="slug-existente"'));
+assert(str_contains($editBody, 'Destino n8n - DST000001 - n8n - active'));
 
 $apiKey = 'hpk_live_test_only';
 $apiKeyBody = View::render('integration-sources/api-key-created.php', [
@@ -141,6 +146,8 @@ $showBody = View::render('integration-sources/show.php', [
 assert(!str_contains($showBody, $apiKey));
 assert(!str_contains($showBody, 'hash'));
 assert(str_contains($showBody, 'data-copy-target'));
+assert(str_contains($showBody, 'DST000001'));
+assert(str_contains($showBody, 'Destino n8n'));
 
 $event = new Event(
     1,
