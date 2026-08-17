@@ -70,17 +70,18 @@ try {
     $tenantIds[] = $tenantB;
 
     $insertDestination = $connection->prepare(
-        "INSERT INTO integration_destinations (tenant_id, name, slug, type, status)
-         VALUES (:tenant_id, :name, :slug, 'n8n', 'active')
+        "INSERT INTO integration_destinations (tenant_id, name, slug, type, status, config)
+         VALUES (:tenant_id, :name, :slug, 'n8n', 'active', CAST(:config AS JSONB))
          RETURNING id, code"
     );
-    $insertDestination->execute(['tenant_id' => $tenantA, 'name' => 'Destino Um ' . $suffix, 'slug' => 'destino-um-' . $suffix]);
+    $destinationConfig = json_encode(['webhook_url' => 'https://n8n.example.com/webhook/' . $suffix, 'timeout_seconds' => 10], JSON_UNESCAPED_SLASHES);
+    $insertDestination->execute(['tenant_id' => $tenantA, 'name' => 'Destino Um ' . $suffix, 'slug' => 'destino-um-' . $suffix, 'config' => $destinationConfig]);
     $firstDestination = $insertDestination->fetch(PDO::FETCH_ASSOC);
     $destinationA = (int) $firstDestination['id'];
     $destinationIds[] = $destinationA;
     assert(preg_match('/^DST\d{6}$/', (string) $firstDestination['code']) === 1);
 
-    $insertDestination->execute(['tenant_id' => $tenantA, 'name' => 'Destino Dois ' . $suffix, 'slug' => 'destino-dois-' . $suffix]);
+    $insertDestination->execute(['tenant_id' => $tenantA, 'name' => 'Destino Dois ' . $suffix, 'slug' => 'destino-dois-' . $suffix, 'config' => $destinationConfig]);
     $secondDestination = $insertDestination->fetch(PDO::FETCH_ASSOC);
     $destinationIds[] = (int) $secondDestination['id'];
     assert($secondDestination['code'] !== $firstDestination['code']);
@@ -104,18 +105,18 @@ try {
     assert($updatedRow['status'] === 'inactive');
 
     try {
-        $insertDestination->execute(['tenant_id' => $tenantA, 'name' => 'Destino Duplicado ' . $suffix, 'slug' => 'destino-dois-' . $suffix]);
+        $insertDestination->execute(['tenant_id' => $tenantA, 'name' => 'Destino Duplicado ' . $suffix, 'slug' => 'destino-dois-' . $suffix, 'config' => $destinationConfig]);
         throw new RuntimeException('Duplicate tenant/slug was not rejected.');
     } catch (PDOException) {
         assert(true);
     }
 
-    $insertDestination->execute(['tenant_id' => $tenantB, 'name' => 'Destino Mesmo Slug ' . $suffix, 'slug' => 'destino-dois-' . $suffix]);
+    $insertDestination->execute(['tenant_id' => $tenantB, 'name' => 'Destino Mesmo Slug ' . $suffix, 'slug' => 'destino-dois-' . $suffix, 'config' => $destinationConfig]);
     $sameSlugOtherTenant = $insertDestination->fetch(PDO::FETCH_ASSOC);
     $destinationIds[] = (int) $sameSlugOtherTenant['id'];
 
     try {
-        $insertDestination->execute(['tenant_id' => 999999999, 'name' => 'Destino FK ' . $suffix, 'slug' => 'destino-fk-' . $suffix]);
+        $insertDestination->execute(['tenant_id' => 999999999, 'name' => 'Destino FK ' . $suffix, 'slug' => 'destino-fk-' . $suffix, 'config' => $destinationConfig]);
         throw new RuntimeException('Invalid tenant FK was not rejected.');
     } catch (PDOException) {
         assert(true);
@@ -144,6 +145,17 @@ try {
     $linkedDestination = $connection->prepare('SELECT destination_id FROM integration_sources WHERE id = :id');
     $linkedDestination->execute(['id' => $sourceId]);
     assert((int) $linkedDestination->fetchColumn() === $destinationA);
+
+    $context = $connection->prepare(
+        "SELECT d.config::TEXT AS destination_config, s.destination_id
+         FROM integration_sources s
+         INNER JOIN integration_destinations d ON d.id = s.destination_id
+         WHERE s.id = :source_id"
+    );
+    $context->execute(['source_id' => $sourceId]);
+    $contextRow = $context->fetch(PDO::FETCH_ASSOC);
+    assert((int) $contextRow['destination_id'] === $destinationA);
+    assert(str_contains((string) $contextRow['destination_config'], 'webhook_url'));
 
     try {
         $connection->prepare('UPDATE integration_sources SET destination_id = :destination_id WHERE id = :source_id')

@@ -48,6 +48,8 @@ final readonly class IntegrationDestinationController
             'slug' => '',
             'type' => 'n8n',
             'status' => 'active',
+            'webhook_url' => '',
+            'timeout_seconds' => '10',
         ]);
     }
 
@@ -102,6 +104,8 @@ final readonly class IntegrationDestinationController
             'slug' => $destination->slug,
             'type' => $destination->type,
             'status' => $destination->status,
+            'webhook_url' => $this->configValue($destination, 'webhook_url'),
+            'timeout_seconds' => $this->configValue($destination, 'timeout_seconds', '10'),
         ], [], 200, $destination);
     }
 
@@ -222,7 +226,20 @@ final readonly class IntegrationDestinationController
             'slug' => $request->input('slug'),
             'type' => $request->input('type'),
             'status' => $request->input('status'),
+            'webhook_url' => $request->input('webhook_url'),
+            'timeout_seconds' => $request->input('timeout_seconds'),
         ];
+    }
+
+    private function configValue(IntegrationDestination $destination, string $key, string $default = ''): string
+    {
+        $config = json_decode($destination->config, true);
+
+        if (!is_array($config)) {
+            return $default;
+        }
+
+        return (string) ($config[$key] ?? $default);
     }
 
     private function destinationFromRequest(Request $request): ?IntegrationDestination

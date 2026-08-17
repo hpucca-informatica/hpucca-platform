@@ -8,13 +8,20 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), e este
 
 ### Adicionado
 
+- Transporte HTTP real para destinos `type = n8n`, com `HttpClientContract`, `CurlHttpClient`, `HttpResponse`, envelope controlado e `ResolvedEventProcessor` no fluxo do dispatcher.
+- Configuracao nao sensivel de n8n em `integration_destinations.config`: `webhook_url` e `timeout_seconds`, sem editor JSON generico e sem secrets.
+- Validacao SSRF basica para webhooks externos, com HTTPS obrigatorio em production, bloqueio de localhost, loopback, redes privadas, link-local, `169.254.0.0/16`, `0.0.0.0`, `::1` e userinfo na URL.
+- Classificacao de respostas n8n: `2xx` sucesso; transporte, `408`, `425`, `429`, `500`, `502`, `503` e `504` transientes; demais falhas permanentes conservadoras.
+- Limite de 256 KB para o JSON enviado ao n8n, falhando permanentemente antes do HTTP quando excedido.
+- Observabilidade do detalhe de eventos com destino e processor, sem webhook completo, config JSON ou response body.
+- Teste HTTP n8n real opcional com `RUN_N8N_HTTP_INTEGRATION_TESTS=1` e `N8N_TEST_WEBHOOK_URL`.
 - Fundacao de destinos de integracao com `IntegrationDestination`, migration `006_create_integration_destinations.sql` e CRUD owner-only em `/admin/integration-destinations`.
 - Codigos publicos imutaveis `DST000001` para destinos via `integration_destinations_code_seq`.
 - Vinculo opcional `integration_sources.destination_id`, validado no service para impedir fonte de uma empresa apontar para destino de outra.
 - Menu de Automacao atualizado com Visao geral, Fontes de integracao, Destinos e Eventos.
 - `EventProcessorResolver` para resolver processadores por tipo de destino sem acoplar o dispatcher ao n8n.
-- `N8nEventProcessor` placeholder, sem HTTP real, que falha permanentemente com mensagem sanitizada enquanto o transporte nao existe.
-- Testes de usabilidade para destinos, vinculo source -> destination e resolver n8n placeholder.
+- `N8nEventProcessor` real para transporte HTTP n8n, mantendo mensagens sanitizadas e sem acesso direto a banco.
+- Testes de usabilidade para destinos, vinculo source -> destination, resolver n8n e transporte n8n com fake HTTP.
 - Dashboard operacional owner-only em `GET /admin/automation` para observabilidade simples do pipeline de eventos.
 - Cards de eventos recebidos, processados, falhos, pendentes, em `processing`, retry agendado, taxa de sucesso e attempts medio de eventos finalizados.
 - Filtros combinados por periodo, tenant, fonte, `event_type` e status, usando consultas preparadas.
@@ -95,11 +102,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), e este
 
 ### Decisoes
 
-- `IntegrationSource` representa a entrada do evento; `IntegrationDestination` representa o alvo de processamento futuro.
-- O Sprint 6.6A cria estrutura, tenant isolation e resolver, mas mantem HTTP real, webhook URL, tokens, secrets, credential vault e entrega n8n fora do escopo.
-- `integration_destinations.config` armazena apenas dados nao sensiveis e permanece `{}` nas telas atuais, sem editor JSON generico.
+- `IntegrationSource` representa a entrada do evento; `IntegrationDestination` representa o alvo de processamento.
+- O Sprint 6.6B entrega HTTP real para n8n sem tokens, secrets, bearer token, HMAC, OAuth ou credential vault.
+- `integration_destinations.config` armazena apenas `webhook_url` e `timeout_seconds` para n8n, sem editor JSON generico.
 - Destinos inativos nao sao oferecidos como vinculo normal novo, mas vinculos existentes continuam visiveis para nao apagar contexto operacional.
-- O `EventDispatcher` continua com `SimulatedEventProcessor` neste sprint para preservar retry, scheduler, recuperacao stale e observabilidade ja existentes.
+- O `EventDispatcher` continua sem conhecimento de n8n; o fluxo real usa resolver/processors injetados e preserva RetryPolicy, scheduler, recuperacao stale e observabilidade.
 - Observabilidade do Sprint 6.5 usa PostgreSQL como fonte, painel administrativo existente e agregacoes simples, sem stack externa de monitoramento.
 - Metricas do dashboard usam `received_at` como referencia do periodo; retry agendado usa a definicao operacional `pending + attempts > 0 + available_at futuro`.
 - Taxa de sucesso exclui pendentes, processing e retries do denominador e mostra valor neutro quando nao ha eventos finalizados.

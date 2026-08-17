@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace HPucca\Platform\Services;
 
+use HPucca\Platform\Core\Config;
 use HPucca\Platform\Models\IntegrationDestination;
 use HPucca\Platform\Repositories\IntegrationDestinationRepositoryContract;
 use HPucca\Platform\Repositories\TenantRepository;
@@ -155,17 +156,46 @@ final readonly class IntegrationDestinationService
             $errors['status'] = 'Status invalido.';
         }
 
+        if ($values['type'] === 'n8n') {
+            $webhookUrl = $values['webhook_url'];
+            $timeoutSeconds = ctype_digit((string) $values['timeout_seconds']) ? (int) $values['timeout_seconds'] : 0;
+
+            if ($webhookUrl === '') {
+                $errors['webhook_url'] = 'Informe a URL do webhook.';
+            } elseif (!(new WebhookUrlValidator((string) Config::get('app.env', 'local')))->isValid($webhookUrl)) {
+                $errors['webhook_url'] = 'Informe uma URL externa segura para o webhook.';
+            }
+
+            if ((string) $values['timeout_seconds'] === '' || $timeoutSeconds < 1 || $timeoutSeconds > 30) {
+                $errors['timeout_seconds'] = 'Informe um timeout entre 1 e 30 segundos.';
+            }
+        }
+
+        $values['config'] = json_encode([
+            'webhook_url' => $values['webhook_url'],
+            'timeout_seconds' => (int) $values['timeout_seconds'],
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '{}';
         return [$values, $errors];
     }
 
     private function values(array $input): array
     {
+        $config = [];
+        if (is_string($input['config'] ?? null)) {
+            $decoded = json_decode($input['config'], true);
+            $config = is_array($decoded) ? $decoded : [];
+        }
+
+        $timeout = trim((string) ($input['timeout_seconds'] ?? ($config['timeout_seconds'] ?? '10')));
+
         return [
             'tenant_id' => trim($input['tenant_id'] ?? ''),
             'name' => preg_replace('/\s+/', ' ', trim($input['name'] ?? '')) ?? '',
             'slug' => strtolower(trim($input['slug'] ?? '')),
             'type' => trim($input['type'] ?? 'n8n'),
             'status' => trim($input['status'] ?? 'active'),
+            'webhook_url' => trim((string) ($input['webhook_url'] ?? ($config['webhook_url'] ?? ''))),
+            'timeout_seconds' => $timeout === '' ? '10' : $timeout,
             'config' => '{}',
         ];
     }

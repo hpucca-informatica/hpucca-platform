@@ -27,6 +27,10 @@ if ($event instanceof Event) {
             <dd><?= $e($event->tenantName) ?></dd>
             <dt>Fonte</dt>
             <dd><?= $e($event->integrationSourceName) ?></dd>
+            <dt>Destino</dt>
+            <dd><?= $e($event->destinationCode !== null ? $event->destinationCode . ' - ' . ($event->destinationName ?? '-') : '-') ?></dd>
+            <dt>Processor</dt>
+            <dd><?= $e($event->destinationType ?? '-') ?></dd>
             <dt>Tipo</dt>
             <dd><?= $e($event->eventType) ?></dd>
             <dt>External ID</dt>

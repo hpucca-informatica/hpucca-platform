@@ -5,12 +5,18 @@ declare(strict_types=1);
 use HPucca\Platform\Models\Event;
 use HPucca\Platform\Repositories\EventRepositoryContract;
 use HPucca\Platform\Services\EventDispatcher;
+use HPucca\Platform\Services\HttpClientContract;
+use HPucca\Platform\Services\HttpResponse;
 use HPucca\Platform\Services\EventProcessorContract;
+use HPucca\Platform\Services\EventProcessorResolver;
+use HPucca\Platform\Services\N8nEventProcessor;
 use HPucca\Platform\Services\PermanentProcessingException;
 use HPucca\Platform\Services\PublicCodeGenerator;
 use HPucca\Platform\Services\RetryPolicy;
+use HPucca\Platform\Services\ResolvedEventProcessor;
 use HPucca\Platform\Services\SimulatedEventProcessor;
 use HPucca\Platform\Services\TransientProcessingException;
+use HPucca\Platform\Services\WebhookUrlValidator;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -224,6 +230,14 @@ final class EventDispatcherMemoryRepository implements EventRepositoryContract
             $event->receivedAt,
             $event->createdAt,
             date('Y-m-d H:i:s'),
+            $event->tenantCode,
+            $event->integrationSourceCode,
+            $event->destinationId,
+            $event->destinationCode,
+            $event->destinationName,
+            $event->destinationType,
+            $event->destinationStatus,
+            $event->destinationConfig,
         );
     }
 }
@@ -249,6 +263,19 @@ final readonly class PermanentEventProcessor implements EventProcessorContract
     public function process(Event $event): void
     {
         throw new PermanentProcessingException('Permanent validation error with payload ' . $event->payload);
+    }
+}
+
+final class DispatcherFakeHttpClient implements HttpClientContract
+{
+    public function __construct(
+        public int $statusCode,
+    ) {
+    }
+
+    public function postJson(string $url, array $payload, int $timeoutSeconds): HttpResponse
+    {
+        return new HttpResponse($this->statusCode);
     }
 }
 
@@ -280,6 +307,39 @@ function dispatcherEvent(
         '2026-01-01 00:00:00',
         '2026-01-01 00:00:00',
         $updatedAt,
+    );
+}
+
+function dispatcherN8nEvent(int $id): Event
+{
+    return new Event(
+        $id,
+        PublicCodeGenerator::format('EVT', $id),
+        1,
+        'Empresa A',
+        1,
+        'Fonte A',
+        'lead.created',
+        'EXT-' . $id,
+        '{"name":"Teste"}',
+        'pending',
+        0,
+        '2026-01-01 00:00:00',
+        null,
+        null,
+        null,
+        '2026-01-01T00:00:00-03:00',
+        '2026-01-01 00:00:00',
+        '2026-01-01 00:00:00',
+        '2026-01-01 00:00:00',
+        'TEN000001',
+        'SRC000001',
+        1,
+        'DST000001',
+        'n8n teste funcional',
+        'n8n',
+        'active',
+        '{"webhook_url":"https://n8n.example.com/webhook/teste","timeout_seconds":10}',
     );
 }
 
@@ -514,8 +574,46 @@ assert($flowRepository->events[25]->processedAt === null);
 assert($flowRepository->events[25]->failedAt !== null);
 assert($flowRepository->events[25]->lastError === 'Transient event processing failure.');
 
+$n8nSuccessRepository = new EventDispatcherMemoryRepository();
+$n8nSuccessRepository->events = [26 => dispatcherN8nEvent(26)];
+$n8nSuccessDispatcher = new EventDispatcher(
+    $n8nSuccessRepository,
+    new ResolvedEventProcessor(new EventProcessorResolver(new N8nEventProcessor(new DispatcherFakeHttpClient(200), new WebhookUrlValidator('production')))),
+    new RetryPolicy(3, [60, 300]),
+);
+$n8nSuccess = $n8nSuccessDispatcher->dispatchOnce();
+assert($n8nSuccess['status'] === 'processed');
+assert($n8nSuccessRepository->events[26]->status === 'processed');
+assert($n8nSuccessRepository->events[26]->attempts === 1);
+
+$n8nTransientRepository = new EventDispatcherMemoryRepository();
+$n8nTransientRepository->events = [27 => dispatcherN8nEvent(27)];
+$n8nTransientDispatcher = new EventDispatcher(
+    $n8nTransientRepository,
+    new ResolvedEventProcessor(new EventProcessorResolver(new N8nEventProcessor(new DispatcherFakeHttpClient(503), new WebhookUrlValidator('production')))),
+    new RetryPolicy(3, [60, 300]),
+);
+$n8nTransient = $n8nTransientDispatcher->dispatchOnce();
+assert($n8nTransient['status'] === 'retried');
+assert($n8nTransientRepository->events[27]->status === 'pending');
+assert($n8nTransientRepository->events[27]->attempts === 1);
+assert(strtotime($n8nTransientRepository->events[27]->availableAt) > time());
+
+$n8nPermanentRepository = new EventDispatcherMemoryRepository();
+$n8nPermanentRepository->events = [28 => dispatcherN8nEvent(28)];
+$n8nPermanentDispatcher = new EventDispatcher(
+    $n8nPermanentRepository,
+    new ResolvedEventProcessor(new EventProcessorResolver(new N8nEventProcessor(new DispatcherFakeHttpClient(404), new WebhookUrlValidator('production')))),
+    new RetryPolicy(3, [60, 300]),
+);
+$n8nPermanent = $n8nPermanentDispatcher->dispatchOnce();
+assert($n8nPermanent['status'] === 'failed');
+assert($n8nPermanentRepository->events[28]->status === 'failed');
+assert($n8nPermanentRepository->events[28]->attempts === 1);
+
 $repositorySql = (string) file_get_contents(dirname(__DIR__) . '/app/Repositories/EventRepository.php');
 assert(str_contains($repositorySql, 'FOR UPDATE OF e SKIP LOCKED'));
+assert(str_contains($repositorySql, 'd.id = s.destination_id AND d.tenant_id = e.tenant_id'));
 assert(str_contains($repositorySql, "AND status = 'processing'"));
 assert(str_contains($repositorySql, "AND status = 'pending'"));
 assert(str_contains($repositorySql, 'recoverStaleProcessing'));
