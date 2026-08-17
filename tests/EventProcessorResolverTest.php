@@ -51,7 +51,7 @@ try {
     $processor->process($event);
     assert(false);
 } catch (PermanentProcessingException $exception) {
-    assert($exception->getMessage() === 'N8n destination transport is not configured.');
+    assert($exception->getMessage() === 'Integration destination is not configured.');
     assert(!str_contains($exception->getMessage(), 'token'));
     assert(!str_contains($exception->getMessage(), 'payload'));
     assert(!str_contains($exception->getMessage(), 'LEAD-001'));
@@ -64,9 +64,9 @@ assert(!str_contains($resolverCode, 'file_get_contents'));
 assert(!str_contains($resolverCode, 'PDO'));
 assert(!str_contains($resolverCode, 'RetryPolicy'));
 assert(!str_contains($resolverCode, 'Scheduler'));
-assert(!str_contains($n8nCode, 'curl'));
-assert(!str_contains($n8nCode, 'http'));
 assert(!str_contains($n8nCode, 'file_get_contents'));
 assert(!str_contains($n8nCode, 'PDO'));
+assert(!str_contains($n8nCode, 'RetryPolicy'));
+assert(!str_contains($n8nCode, 'Scheduler'));
 
 echo 'EventProcessorResolverTest passed.' . PHP_EOL;

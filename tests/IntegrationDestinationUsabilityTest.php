@@ -9,10 +9,10 @@ use HPucca\Platform\Models\Tenant;
 require dirname(__DIR__) . '/vendor/autoload.php';
 
 $tenant = new Tenant(1, 'TEN000001', 'Empresa A', 'empresa-a', 'active', '2026-01-01', '2026-01-01');
-$destination = new IntegrationDestination(1, 'DST000001', 1, 'Empresa A', 'active', 'Destino n8n', 'destino-n8n', 'n8n', 'active', '{}', '2026-01-01', '2026-01-01');
+$destination = new IntegrationDestination(1, 'DST000001', 1, 'Empresa A', 'active', 'Destino n8n', 'destino-n8n', 'n8n', 'active', '{"webhook_url":"https://n8n.example.com/webhook/hpucca-events?token=hidden","timeout_seconds":10}', '2026-01-01', '2026-01-01');
 
 $formBody = View::render('integration-destinations/create.php', [
-    'values' => ['tenant_id' => '', 'name' => '', 'slug' => '', 'type' => 'n8n', 'status' => 'active'],
+    'values' => ['tenant_id' => '', 'name' => '', 'slug' => '', 'type' => 'n8n', 'status' => 'active', 'webhook_url' => '', 'timeout_seconds' => '10'],
     'errors' => [],
     'tenants' => [$tenant],
     'csrfField' => '<input type="hidden" name="_csrf" value="token">',
@@ -21,6 +21,8 @@ assert(str_contains($formBody, 'data-slug-source'));
 assert(str_contains($formBody, 'data-slug-target'));
 assert(str_contains($formBody, 'name="type"'));
 assert(str_contains($formBody, 'value="n8n"'));
+assert(str_contains($formBody, 'name="webhook_url"'));
+assert(str_contains($formBody, 'name="timeout_seconds"'));
 assert(!str_contains($formBody, 'textarea'));
 assert(!str_contains($formBody, 'secret'));
 assert(!str_contains($formBody, 'password'));
@@ -45,9 +47,11 @@ $showBody = View::render('integration-destinations/show.php', [
     'csrfField' => '<input type="hidden" name="_csrf" value="token">',
 ]);
 assert(str_contains($showBody, 'DST000001'));
-assert(str_contains($showBody, '{}'));
+assert(str_contains($showBody, 'https://n8n.example.com/.../hpucca-events'));
+assert(str_contains($showBody, '10s'));
 assert(str_contains($showBody, '/admin/integration-destinations/1/deactivate'));
-assert(!str_contains($showBody, 'webhook'));
+assert(!str_contains($showBody, 'token=hidden'));
+assert(!str_contains($showBody, '{"webhook_url"'));
 assert(!str_contains($showBody, 'credential'));
 
 $migration = (string) file_get_contents(dirname(__DIR__) . '/database/migrations/006_create_integration_destinations.sql');

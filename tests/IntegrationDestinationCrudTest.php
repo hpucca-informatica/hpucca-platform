@@ -254,12 +254,15 @@ $created = $service->create([
     'slug' => 'destino-novo',
     'type' => 'n8n',
     'status' => 'active',
+    'webhook_url' => 'https://n8n.example.com/webhook/novo',
+    'timeout_seconds' => '10',
     'code' => 'DST999999',
     'created_at' => '2099-01-01',
     'updated_at' => '2099-01-01',
 ]);
 assert($created['destination'] instanceof IntegrationDestination);
 assert($created['destination']->code === 'DST000004');
+assert($repository->lastCreateData['config'] === '{"webhook_url":"https://n8n.example.com/webhook/novo","timeout_seconds":10}');
 assert(!array_key_exists('code', $repository->lastCreateData ?? []));
 assert(!array_key_exists('created_at', $repository->lastCreateData ?? []));
 assert(!array_key_exists('updated_at', $repository->lastCreateData ?? []));
@@ -270,6 +273,8 @@ $updated = $service->update(4, [
     'slug' => 'destino-editado',
     'type' => 'n8n',
     'status' => 'inactive',
+    'webhook_url' => 'https://n8n.example.com/webhook/editado?secret=hidden',
+    'timeout_seconds' => '12',
     'code' => 'DST999999',
     'created_at' => '2099-01-01',
     'updated_at' => '2099-01-01',
@@ -277,18 +282,27 @@ $updated = $service->update(4, [
 assert($updated['destination'] instanceof IntegrationDestination);
 assert($updated['destination']->code === 'DST000004');
 assert($updated['destination']->status === 'inactive');
+assert($repository->lastUpdateData['config'] === '{"webhook_url":"https://n8n.example.com/webhook/editado?secret=hidden","timeout_seconds":12}');
 assert(!array_key_exists('code', $repository->lastUpdateData ?? []));
 assert(!array_key_exists('created_at', $repository->lastUpdateData ?? []));
 assert(!array_key_exists('updated_at', $repository->lastUpdateData ?? []));
 
-$invalidSlug = $service->create(['tenant_id' => '1', 'name' => 'Destino', 'slug' => 'Destino Invalido', 'type' => 'n8n', 'status' => 'active']);
+$validConfig = ['webhook_url' => 'https://n8n.example.com/webhook/teste', 'timeout_seconds' => '10'];
+
+$invalidSlug = $service->create(['tenant_id' => '1', 'name' => 'Destino', 'slug' => 'Destino Invalido', 'type' => 'n8n', 'status' => 'active', ...$validConfig]);
 assert(isset($invalidSlug['errors']['slug']));
 
-$invalidType = $service->create(['tenant_id' => '1', 'name' => 'Destino', 'slug' => 'destino-type', 'type' => 'webhook', 'status' => 'active']);
+$invalidType = $service->create(['tenant_id' => '1', 'name' => 'Destino', 'slug' => 'destino-type', 'type' => 'webhook', 'status' => 'active', ...$validConfig]);
 assert(isset($invalidType['errors']['type']));
 
-$invalidStatus = $service->create(['tenant_id' => '1', 'name' => 'Destino', 'slug' => 'destino-status', 'type' => 'n8n', 'status' => 'paused']);
+$invalidStatus = $service->create(['tenant_id' => '1', 'name' => 'Destino', 'slug' => 'destino-status', 'type' => 'n8n', 'status' => 'paused', ...$validConfig]);
 assert(isset($invalidStatus['errors']['status']));
+
+$invalidWebhook = $service->create(['tenant_id' => '1', 'name' => 'Destino', 'slug' => 'destino-webhook', 'type' => 'n8n', 'status' => 'active', 'webhook_url' => 'https://localhost/webhook', 'timeout_seconds' => '10']);
+assert(isset($invalidWebhook['errors']['webhook_url']));
+
+$invalidTimeout = $service->create(['tenant_id' => '1', 'name' => 'Destino', 'slug' => 'destino-timeout', 'type' => 'n8n', 'status' => 'active', 'webhook_url' => 'https://n8n.example.com/webhook/teste', 'timeout_seconds' => '31']);
+assert(isset($invalidTimeout['errors']['timeout_seconds']));
 
 assert($service->activate(2) === true);
 assert($repository->findById(2)?->status === 'active');
