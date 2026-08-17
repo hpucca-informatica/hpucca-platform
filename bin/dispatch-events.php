@@ -7,7 +7,7 @@ use HPucca\Platform\Core\Database;
 use HPucca\Platform\Repositories\EventRepository;
 use HPucca\Platform\Services\DispatcherLock;
 use HPucca\Platform\Services\EventDispatcher;
-use HPucca\Platform\Services\SimulatedEventProcessor;
+use HPucca\Platform\Services\ResolvedEventProcessor;
 
 $arguments = array_slice($argv, 1);
 
@@ -67,7 +67,7 @@ try {
 
     $dispatcher = new EventDispatcher(
         $events,
-        new SimulatedEventProcessor(),
+        new ResolvedEventProcessor(),
     );
 
     try {

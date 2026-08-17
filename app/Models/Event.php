@@ -26,6 +26,14 @@ final readonly class Event
         public string $receivedAt,
         public string $createdAt,
         public string $updatedAt,
+        public ?string $tenantCode = null,
+        public ?string $integrationSourceCode = null,
+        public ?int $destinationId = null,
+        public ?string $destinationCode = null,
+        public ?string $destinationName = null,
+        public ?string $destinationType = null,
+        public ?string $destinationStatus = null,
+        public ?string $destinationConfig = null,
     ) {
     }
 }

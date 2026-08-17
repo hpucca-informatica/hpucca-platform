@@ -73,6 +73,22 @@ $fieldError = static fn (string $key): string => is_string($errors[$key] ?? null
                 <span class="form-error"><?= $e($fieldError('status')) ?></span>
             <?php endif; ?>
         </div>
+
+        <div class="form-field">
+            <label for="destination-webhook-url">Webhook URL</label>
+            <input id="destination-webhook-url" name="webhook_url" type="url" maxlength="2048" required value="<?= $e($fieldValue('webhook_url')) ?>">
+            <?php if ($fieldError('webhook_url') !== ''): ?>
+                <span class="form-error"><?= $e($fieldError('webhook_url')) ?></span>
+            <?php endif; ?>
+        </div>
+
+        <div class="form-field">
+            <label for="destination-timeout">Timeout</label>
+            <input id="destination-timeout" name="timeout_seconds" type="number" min="1" max="30" step="1" required value="<?= $e($fieldValue('timeout_seconds') === '' ? '10' : $fieldValue('timeout_seconds')) ?>">
+            <?php if ($fieldError('timeout_seconds') !== ''): ?>
+                <span class="form-error"><?= $e($fieldError('timeout_seconds')) ?></span>
+            <?php endif; ?>
+        </div>
     </div>
 
     <div class="form-actions">

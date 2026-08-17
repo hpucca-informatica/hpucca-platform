@@ -3,8 +3,19 @@
 declare(strict_types=1);
 
 use HPucca\Platform\Models\IntegrationDestination;
+use HPucca\Platform\Services\N8nDestinationConfig;
 
 $destination = $destination instanceof IntegrationDestination ? $destination : null;
+$config = [];
+$endpoint = '-';
+$timeout = '-';
+
+if ($destination instanceof IntegrationDestination) {
+    $decodedConfig = json_decode($destination->config, true);
+    $config = is_array($decodedConfig) ? $decodedConfig : [];
+    $endpoint = N8nDestinationConfig::maskedEndpoint((string) ($config['webhook_url'] ?? ''));
+    $timeout = (string) ($config['timeout_seconds'] ?? '10');
+}
 ?>
 <?php if ($destination instanceof IntegrationDestination): ?>
     <section class="entity-details">
@@ -21,8 +32,10 @@ $destination = $destination instanceof IntegrationDestination ? $destination : n
             <dd><?= $e($destination->type) ?></dd>
             <dt>Status</dt>
             <dd><?= $statusBadge($destination->status) ?></dd>
-            <dt>Config</dt>
-            <dd><code><?= $e($destination->config) ?></code></dd>
+            <dt>Timeout</dt>
+            <dd><?= $e($timeout) ?>s</dd>
+            <dt>Endpoint</dt>
+            <dd><code><?= $e($endpoint) ?></code></dd>
             <dt>Criacao</dt>
             <dd><?= $e($formatDate($destination->createdAt)) ?></dd>
             <dt>Atualizacao</dt>

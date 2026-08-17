@@ -54,6 +54,7 @@ final readonly class EventRepository implements EventRepositoryContract
              FROM events e
              INNER JOIN tenants t ON t.id = e.tenant_id
              INNER JOIN integration_sources s ON s.id = e.integration_source_id
+             LEFT JOIN integration_destinations d ON d.id = s.destination_id AND d.tenant_id = e.tenant_id
              WHERE {$where}"
         );
         $statement->execute($params);
@@ -326,13 +327,17 @@ final readonly class EventRepository implements EventRepositoryContract
     private function selectSql(): string
     {
         return 'SELECT e.id, e.code, e.tenant_id, t.name AS tenant_name,
-                    e.integration_source_id, s.name AS integration_source_name,
+                    t.code AS tenant_code,
+                    e.integration_source_id, s.code AS integration_source_code, s.name AS integration_source_name,
+                    d.id AS destination_id, d.code AS destination_code, d.name AS destination_name,
+                    d.type AS destination_type, d.status AS destination_status, d.config::TEXT AS destination_config,
                     e.event_type, e.external_id, e.payload::TEXT AS payload, e.status, e.attempts,
                     e.available_at, e.processed_at, e.failed_at, e.last_error, e.occurred_at,
                     e.received_at, e.created_at, e.updated_at
                 FROM events e
                 INNER JOIN tenants t ON t.id = e.tenant_id
-                INNER JOIN integration_sources s ON s.id = e.integration_source_id';
+                INNER JOIN integration_sources s ON s.id = e.integration_source_id
+                LEFT JOIN integration_destinations d ON d.id = s.destination_id AND d.tenant_id = e.tenant_id';
     }
 
     private function beginShortTransaction(): string
@@ -399,6 +404,14 @@ final readonly class EventRepository implements EventRepositoryContract
             (string) $row['received_at'],
             (string) $row['created_at'],
             (string) $row['updated_at'],
+            is_string($row['tenant_code'] ?? null) ? $row['tenant_code'] : null,
+            is_string($row['integration_source_code'] ?? null) ? $row['integration_source_code'] : null,
+            isset($row['destination_id']) ? (int) $row['destination_id'] : null,
+            is_string($row['destination_code'] ?? null) ? $row['destination_code'] : null,
+            is_string($row['destination_name'] ?? null) ? $row['destination_name'] : null,
+            is_string($row['destination_type'] ?? null) ? $row['destination_type'] : null,
+            is_string($row['destination_status'] ?? null) ? $row['destination_status'] : null,
+            is_string($row['destination_config'] ?? null) ? $row['destination_config'] : null,
         );
     }
 }
