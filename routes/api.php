@@ -10,6 +10,7 @@ use HPucca\Platform\Controllers\EventController;
 use HPucca\Platform\Controllers\EventWebhookController;
 use HPucca\Platform\Controllers\HealthController;
 use HPucca\Platform\Controllers\IntegrationSourceController;
+use HPucca\Platform\Controllers\IntegrationDestinationController;
 use HPucca\Platform\Controllers\PasswordController;
 use HPucca\Platform\Controllers\ProfileController;
 use HPucca\Platform\Controllers\UserController;
@@ -266,6 +267,70 @@ $router->post('/admin/integration-sources/{id}/deactivate', static function (Req
     return (new AuthMiddleware(new AuthService()))->handle(
         static fn (): Response => (new OwnerMiddleware())->handle(
             static fn (): Response => (new IntegrationSourceController(new Database(Config::get('database'))))->deactivate($request)
+        )
+    );
+});
+
+$router->get('/admin/integration-destinations', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new IntegrationDestinationController(new Database(Config::get('database'))))->index($request)
+        )
+    );
+});
+
+$router->get('/admin/integration-destinations/create', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new IntegrationDestinationController(new Database(Config::get('database'))))->create()
+        )
+    );
+});
+
+$router->post('/admin/integration-destinations', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new IntegrationDestinationController(new Database(Config::get('database'))))->store($request)
+        )
+    );
+});
+
+$router->get('/admin/integration-destinations/{id}', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new IntegrationDestinationController(new Database(Config::get('database'))))->show($request)
+        )
+    );
+});
+
+$router->get('/admin/integration-destinations/{id}/edit', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new IntegrationDestinationController(new Database(Config::get('database'))))->edit($request)
+        )
+    );
+});
+
+$router->post('/admin/integration-destinations/{id}', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new IntegrationDestinationController(new Database(Config::get('database'))))->update($request)
+        )
+    );
+});
+
+$router->post('/admin/integration-destinations/{id}/activate', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new IntegrationDestinationController(new Database(Config::get('database'))))->activate($request)
+        )
+    );
+});
+
+$router->post('/admin/integration-destinations/{id}/deactivate', static function (Request $request): Response {
+    return (new AuthMiddleware(new AuthService()))->handle(
+        static fn (): Response => (new OwnerMiddleware())->handle(
+            static fn (): Response => (new IntegrationDestinationController(new Database(Config::get('database'))))->deactivate($request)
         )
     );
 });
