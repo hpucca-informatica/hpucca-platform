@@ -17,6 +17,11 @@ final readonly class IntegrationSource
         public string $apiKeyHash,
         public string $status,
         public ?string $lastUsedAt,
+        public ?int $destinationId,
+        public ?string $destinationCode,
+        public ?string $destinationName,
+        public ?string $destinationType,
+        public ?string $destinationStatus,
         public string $createdAt,
         public string $updatedAt,
     ) {

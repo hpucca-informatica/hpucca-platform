@@ -90,13 +90,13 @@ final readonly class IntegrationSourceRepository implements IntegrationSourceRep
     }
 
     /**
-     * @param array{tenant_id: string, name: string, slug: string, status: string, api_key_hash: string} $data
+     * @param array{tenant_id: string, name: string, slug: string, status: string, destination_id: string, api_key_hash: string} $data
      */
     public function create(array $data, PublicCodeGenerator $codes): IntegrationSource
     {
         $statement = $this->connection->prepare(
-            'INSERT INTO integration_sources (code, tenant_id, name, slug, api_key_hash, status)
-             VALUES (:code, :tenant_id, :name, :slug, :api_key_hash, :status)
+            'INSERT INTO integration_sources (code, tenant_id, name, slug, api_key_hash, status, destination_id)
+             VALUES (:code, :tenant_id, :name, :slug, :api_key_hash, :status, :destination_id)
              RETURNING id'
         );
         $statement->execute([
@@ -106,19 +106,20 @@ final readonly class IntegrationSourceRepository implements IntegrationSourceRep
             'slug' => $data['slug'],
             'api_key_hash' => $data['api_key_hash'],
             'status' => $data['status'],
+            'destination_id' => $data['destination_id'] === '' ? null : (int) $data['destination_id'],
         ]);
 
         return $this->findById((int) $statement->fetchColumn()) ?? throw new \RuntimeException('Integration source not found after create.');
     }
 
     /**
-     * @param array{tenant_id: string, name: string, slug: string, status: string} $data
+     * @param array{tenant_id: string, name: string, slug: string, status: string, destination_id: string} $data
      */
     public function update(int $id, array $data): IntegrationSource
     {
         $statement = $this->connection->prepare(
             'UPDATE integration_sources
-             SET tenant_id = :tenant_id, name = :name, slug = :slug, status = :status, updated_at = NOW()
+             SET tenant_id = :tenant_id, name = :name, slug = :slug, status = :status, destination_id = :destination_id, updated_at = NOW()
              WHERE id = :id'
         );
         $statement->execute([
@@ -127,6 +128,7 @@ final readonly class IntegrationSourceRepository implements IntegrationSourceRep
             'name' => $data['name'],
             'slug' => $data['slug'],
             'status' => $data['status'],
+            'destination_id' => $data['destination_id'] === '' ? null : (int) $data['destination_id'],
         ]);
 
         return $this->findById($id) ?? throw new \RuntimeException('Integration source not found after update.');
@@ -191,9 +193,12 @@ final readonly class IntegrationSourceRepository implements IntegrationSourceRep
     private function selectSql(): string
     {
         return 'SELECT s.id, s.code, s.tenant_id, t.name AS tenant_name, t.status AS tenant_status,
-                    s.name, s.slug, s.api_key_hash, s.status, s.last_used_at, s.created_at, s.updated_at
+                    s.name, s.slug, s.api_key_hash, s.status, s.last_used_at, s.destination_id,
+                    d.code AS destination_code, d.name AS destination_name, d.type AS destination_type, d.status AS destination_status,
+                    s.created_at, s.updated_at
                 FROM integration_sources s
-                INNER JOIN tenants t ON t.id = s.tenant_id';
+                INNER JOIN tenants t ON t.id = s.tenant_id
+                LEFT JOIN integration_destinations d ON d.id = s.destination_id';
     }
 
     /**
@@ -212,6 +217,11 @@ final readonly class IntegrationSourceRepository implements IntegrationSourceRep
             (string) $row['api_key_hash'],
             (string) $row['status'],
             is_string($row['last_used_at'] ?? null) ? $row['last_used_at'] : null,
+            $row['destination_id'] === null ? null : (int) $row['destination_id'],
+            is_string($row['destination_code'] ?? null) ? $row['destination_code'] : null,
+            is_string($row['destination_name'] ?? null) ? $row['destination_name'] : null,
+            is_string($row['destination_type'] ?? null) ? $row['destination_type'] : null,
+            is_string($row['destination_status'] ?? null) ? $row['destination_status'] : null,
             (string) $row['created_at'],
             (string) $row['updated_at'],
         );

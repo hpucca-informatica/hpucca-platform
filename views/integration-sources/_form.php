@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 use HPucca\Platform\Models\Tenant;
+use HPucca\Platform\Models\IntegrationDestination;
 
 $values = isset($values) && is_array($values) ? $values : [];
 $errors = isset($errors) && is_array($errors) ? $errors : [];
 $tenants = isset($tenants) && is_array($tenants) ? $tenants : [];
+$destinations = isset($destinations) && is_array($destinations) ? $destinations : [];
 $action = isset($action) && is_string($action) ? $action : '/admin/integration-sources';
 $submitLabel = isset($submitLabel) && is_string($submitLabel) ? $submitLabel : 'Salvar';
 
@@ -61,6 +63,23 @@ $fieldError = static fn (string $key): string => is_string($errors[$key] ?? null
             </select>
             <?php if ($fieldError('status') !== ''): ?>
                 <span class="form-error"><?= $e($fieldError('status')) ?></span>
+            <?php endif; ?>
+        </div>
+
+        <div class="form-field">
+            <label for="source-destination">Destino de integracao</label>
+            <select id="source-destination" name="destination_id">
+                <option value="">Nenhum destino</option>
+                <?php foreach ($destinations as $destinationOption): ?>
+                    <?php if ($destinationOption instanceof IntegrationDestination): ?>
+                        <option value="<?= $e((string) $destinationOption->id) ?>" <?= $fieldValue('destination_id') === (string) $destinationOption->id ? 'selected' : '' ?>>
+                            <?= $e($destinationOption->name . ' - ' . $destinationOption->code . ' - ' . $destinationOption->type . ' - ' . $destinationOption->status) ?>
+                        </option>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </select>
+            <?php if ($fieldError('destination_id') !== ''): ?>
+                <span class="form-error"><?= $e($fieldError('destination_id')) ?></span>
             <?php endif; ?>
         </div>
     </div>

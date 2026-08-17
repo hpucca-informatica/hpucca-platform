@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace HPucca\Platform\Services;
 
 use HPucca\Platform\Models\IntegrationSource;
+use HPucca\Platform\Models\IntegrationDestination;
+use HPucca\Platform\Repositories\IntegrationDestinationRepositoryContract;
 use HPucca\Platform\Repositories\IntegrationSourceRepositoryContract;
 use HPucca\Platform\Repositories\TenantRepository;
 
@@ -14,6 +16,7 @@ final readonly class IntegrationSourceService
 
     public function __construct(
         private IntegrationSourceRepositoryContract $sources,
+        private IntegrationDestinationRepositoryContract $destinations,
         private TenantRepository $tenants,
         private PublicCodeGenerator $codes,
         private ApiKeyService $apiKeys,
@@ -53,6 +56,28 @@ final readonly class IntegrationSourceService
     public function tenants(): array
     {
         return $this->tenants->all();
+    }
+
+    public function destinationsForForm(?int $tenantId, ?int $currentDestinationId = null): array
+    {
+        if ($tenantId === null || $tenantId <= 0) {
+            return [];
+        }
+
+        $destinations = $this->destinations->findByTenant($tenantId, true);
+        $current = $currentDestinationId === null ? null : $this->destinations->findById($currentDestinationId);
+
+        if ($current instanceof IntegrationDestination && $current->tenantId === $tenantId) {
+            foreach ($destinations as $destination) {
+                if ($destination->id === $current->id) {
+                    return $destinations;
+                }
+            }
+
+            $destinations[] = $current;
+        }
+
+        return $destinations;
     }
 
     /**
@@ -114,7 +139,7 @@ final readonly class IntegrationSourceService
 
     /**
      * @param array<string, string> $input
-     * @return array{0: array{tenant_id: string, name: string, slug: string, status: string}, 1: array<string, string>}
+     * @return array{0: array{tenant_id: string, name: string, slug: string, status: string, destination_id: string}, 1: array<string, string>}
      */
     private function validate(array $input, ?int $ignoreId = null): array
     {
@@ -143,12 +168,19 @@ final readonly class IntegrationSourceService
             $errors['status'] = 'Status invalido.';
         }
 
+        if ($values['destination_id'] !== '') {
+            $destination = $this->destinations->findById((int) $values['destination_id']);
+            if (!$destination instanceof IntegrationDestination || $destination->tenantId !== $tenantId) {
+                $errors['destination_id'] = 'Selecione um destino da mesma empresa.';
+            }
+        }
+
         return [$values, $errors];
     }
 
     /**
      * @param array<string, string> $input
-     * @return array{tenant_id: string, name: string, slug: string, status: string}
+     * @return array{tenant_id: string, name: string, slug: string, status: string, destination_id: string}
      */
     private function values(array $input): array
     {
@@ -157,6 +189,7 @@ final readonly class IntegrationSourceService
             'name' => preg_replace('/\s+/', ' ', trim($input['name'] ?? '')) ?? '',
             'slug' => strtolower(trim($input['slug'] ?? '')),
             'status' => trim($input['status'] ?? 'active'),
+            'destination_id' => trim($input['destination_id'] ?? ''),
         ];
     }
 }
