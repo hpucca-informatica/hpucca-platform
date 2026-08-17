@@ -19,6 +19,17 @@ $source = $source instanceof IntegrationSource ? $source : null;
             <dd><?= $e($source->slug) ?></dd>
             <dt>Status</dt>
             <dd><?= $statusBadge($source->status) ?></dd>
+            <dt>Destino</dt>
+            <dd>
+                <?php if ($source->destinationId !== null): ?>
+                    <?= $e((string) $source->destinationName) ?>
+                    <span><?= $e((string) $source->destinationCode) ?></span>
+                    <span><?= $e((string) $source->destinationType) ?></span>
+                    <?= $statusBadge((string) $source->destinationStatus) ?>
+                <?php else: ?>
+                    Nenhum destino configurado.
+                <?php endif; ?>
+            </dd>
             <dt>Ultimo uso</dt>
             <dd><?= $e($formatDate($source->lastUsedAt)) ?></dd>
             <dt>Criacao</dt>

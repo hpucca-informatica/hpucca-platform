@@ -200,7 +200,7 @@ assert($apiKey !== $hash);
 assert($apiKeys->verify($apiKey, $hash));
 assert(!$apiKeys->verify('invalid', $hash));
 
-$activeSource = new IntegrationSource(1, 'SRC000001', 1, 'Empresa A', 'active', 'Site', 'site', $hash, 'active', null, '2026-01-01', '2026-01-01');
+$activeSource = new IntegrationSource(1, 'SRC000001', 1, 'Empresa A', 'active', 'Site', 'site', $hash, 'active', null, null, null, null, null, null, '2026-01-01', '2026-01-01');
 $sourceRepository = new EventIngestionSourceRepository([$activeSource]);
 $eventRepository = new EventIngestionEventRepository();
 $service = new EventIngestionService($sourceRepository, $eventRepository, $codes, $apiKeys);
@@ -274,11 +274,11 @@ assert($duplicate['body']['status'] === 'duplicate');
 assert($duplicate['body']['event_code'] === 'EVT000001');
 assert(count($eventRepository->events) === 1);
 
-$inactiveSource = new IntegrationSource(2, 'SRC000002', 1, 'Empresa A', 'active', 'Inactive', 'inactive', $hash, 'inactive', null, '2026-01-01', '2026-01-01');
+$inactiveSource = new IntegrationSource(2, 'SRC000002', 1, 'Empresa A', 'active', 'Inactive', 'inactive', $hash, 'inactive', null, null, null, null, null, null, '2026-01-01', '2026-01-01');
 $inactiveService = new EventIngestionService(new EventIngestionSourceRepository([$inactiveSource]), new EventIngestionEventRepository(), $codes, $apiKeys);
 assert($inactiveService->ingest($apiKey, '{"event":"lead.created","external_id":"LEAD-002","data":{}}')['httpStatus'] === 403);
 
-$inactiveTenant = new IntegrationSource(3, 'SRC000003', 2, 'Empresa B', 'inactive', 'Tenant inactive', 'tenant-inactive', $hash, 'active', null, '2026-01-01', '2026-01-01');
+$inactiveTenant = new IntegrationSource(3, 'SRC000003', 2, 'Empresa B', 'inactive', 'Tenant inactive', 'tenant-inactive', $hash, 'active', null, null, null, null, null, null, '2026-01-01', '2026-01-01');
 $inactiveTenantService = new EventIngestionService(new EventIngestionSourceRepository([$inactiveTenant]), new EventIngestionEventRepository(), $codes, $apiKeys);
 assert($inactiveTenantService->ingest($apiKey, '{"event":"lead.created","external_id":"LEAD-003","data":{}}')['httpStatus'] === 403);
 

@@ -8,6 +8,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), e este
 
 ### Adicionado
 
+- Fundacao de destinos de integracao com `IntegrationDestination`, migration `006_create_integration_destinations.sql` e CRUD owner-only em `/admin/integration-destinations`.
+- Codigos publicos imutaveis `DST000001` para destinos via `integration_destinations_code_seq`.
+- Vinculo opcional `integration_sources.destination_id`, validado no service para impedir fonte de uma empresa apontar para destino de outra.
+- Menu de Automacao atualizado com Visao geral, Fontes de integracao, Destinos e Eventos.
+- `EventProcessorResolver` para resolver processadores por tipo de destino sem acoplar o dispatcher ao n8n.
+- `N8nEventProcessor` placeholder, sem HTTP real, que falha permanentemente com mensagem sanitizada enquanto o transporte nao existe.
+- Testes de usabilidade para destinos, vinculo source -> destination e resolver n8n placeholder.
 - Dashboard operacional owner-only em `GET /admin/automation` para observabilidade simples do pipeline de eventos.
 - Cards de eventos recebidos, processados, falhos, pendentes, em `processing`, retry agendado, taxa de sucesso e attempts medio de eventos finalizados.
 - Filtros combinados por periodo, tenant, fonte, `event_type` e status, usando consultas preparadas.
@@ -88,6 +95,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), e este
 
 ### Decisoes
 
+- `IntegrationSource` representa a entrada do evento; `IntegrationDestination` representa o alvo de processamento futuro.
+- O Sprint 6.6A cria estrutura, tenant isolation e resolver, mas mantem HTTP real, webhook URL, tokens, secrets, credential vault e entrega n8n fora do escopo.
+- `integration_destinations.config` armazena apenas dados nao sensiveis e permanece `{}` nas telas atuais, sem editor JSON generico.
+- Destinos inativos nao sao oferecidos como vinculo normal novo, mas vinculos existentes continuam visiveis para nao apagar contexto operacional.
+- O `EventDispatcher` continua com `SimulatedEventProcessor` neste sprint para preservar retry, scheduler, recuperacao stale e observabilidade ja existentes.
 - Observabilidade do Sprint 6.5 usa PostgreSQL como fonte, painel administrativo existente e agregacoes simples, sem stack externa de monitoramento.
 - Metricas do dashboard usam `received_at` como referencia do periodo; retry agendado usa a definicao operacional `pending + attempts > 0 + available_at futuro`.
 - Taxa de sucesso exclui pendentes, processing e retries do denominador e mostra valor neutro quando nao ha eventos finalizados.

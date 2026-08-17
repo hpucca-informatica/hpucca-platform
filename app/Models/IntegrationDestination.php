@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace HPucca\Platform\Models;
 
-final readonly class IntegrationSource
+final readonly class IntegrationDestination
 {
     public function __construct(
         public int $id,
@@ -14,14 +14,9 @@ final readonly class IntegrationSource
         public string $tenantStatus,
         public string $name,
         public string $slug,
-        public string $apiKeyHash,
+        public string $type,
         public string $status,
-        public ?string $lastUsedAt,
-        public ?int $destinationId,
-        public ?string $destinationCode,
-        public ?string $destinationName,
-        public ?string $destinationType,
-        public ?string $destinationStatus,
+        public string $config,
         public string $createdAt,
         public string $updatedAt,
     ) {

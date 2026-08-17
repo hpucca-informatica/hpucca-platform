@@ -27,6 +27,7 @@ if ($isOwner) {
     $menu['Automacao'] = [
         ['key' => 'automation', 'label' => 'Visao geral', 'href' => '/admin/automation'],
         ['key' => 'integration-sources', 'label' => 'Fontes de integracao', 'href' => '/admin/integration-sources'],
+        ['key' => 'integration-destinations', 'label' => 'Destinos', 'href' => '/admin/integration-destinations'],
         ['key' => 'events', 'label' => 'Eventos', 'href' => '/admin/events'],
     ];
 }

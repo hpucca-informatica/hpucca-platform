@@ -26,12 +26,12 @@ interface IntegrationSourceRepositoryContract
     public function sourcesForAuthentication(): array;
 
     /**
-     * @param array{tenant_id: string, name: string, slug: string, status: string, api_key_hash: string} $data
+     * @param array{tenant_id: string, name: string, slug: string, status: string, destination_id: string, api_key_hash: string} $data
      */
     public function create(array $data, PublicCodeGenerator $codes): IntegrationSource;
 
     /**
-     * @param array{tenant_id: string, name: string, slug: string, status: string} $data
+     * @param array{tenant_id: string, name: string, slug: string, status: string, destination_id: string} $data
      */
     public function update(int $id, array $data): IntegrationSource;
 

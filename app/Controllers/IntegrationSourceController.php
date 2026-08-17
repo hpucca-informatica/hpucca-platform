@@ -10,6 +10,7 @@ use HPucca\Platform\Core\Request;
 use HPucca\Platform\Core\Response;
 use HPucca\Platform\Core\View;
 use HPucca\Platform\Models\IntegrationSource;
+use HPucca\Platform\Repositories\IntegrationDestinationRepository;
 use HPucca\Platform\Repositories\IntegrationSourceRepository;
 use HPucca\Platform\Repositories\TenantRepository;
 use HPucca\Platform\Services\ApiKeyService;
@@ -48,6 +49,7 @@ final readonly class IntegrationSourceController
             'name' => '',
             'slug' => '',
             'status' => 'active',
+            'destination_id' => '',
         ]);
     }
 
@@ -107,6 +109,7 @@ final readonly class IntegrationSourceController
             'name' => $source->name,
             'slug' => $source->slug,
             'status' => $source->status,
+            'destination_id' => $source->destinationId === null ? '' : (string) $source->destinationId,
         ], [], 200, $source);
     }
 
@@ -169,6 +172,7 @@ final readonly class IntegrationSourceController
 
             return new IntegrationSourceService(
                 new IntegrationSourceRepository($connection),
+                new IntegrationDestinationRepository($connection),
                 new TenantRepository($connection),
                 new PublicCodeGenerator($connection),
                 new ApiKeyService(),
@@ -209,6 +213,10 @@ final readonly class IntegrationSourceController
             'errors' => $errors,
             'source' => $source,
             'tenants' => $this->service()->tenants(),
+            'destinations' => $this->service()->destinationsForForm(
+                (int) ($values['tenant_id'] ?? 0) ?: ($source?->tenantId),
+                $source?->destinationId,
+            ),
         ], $status);
     }
 
@@ -228,7 +236,7 @@ final readonly class IntegrationSourceController
     }
 
     /**
-     * @return array{tenant_id: string, name: string, slug: string, status: string}
+     * @return array{tenant_id: string, name: string, slug: string, status: string, destination_id: string}
      */
     private function sourceInput(Request $request): array
     {
@@ -237,6 +245,7 @@ final readonly class IntegrationSourceController
             'name' => $request->input('name'),
             'slug' => $request->input('slug'),
             'status' => $request->input('status'),
+            'destination_id' => $request->input('destination_id'),
         ];
     }
 

@@ -16,6 +16,7 @@ final readonly class PublicCodeGenerator
         'TEN' => 'tenants_code_seq',
         'USR' => 'users_code_seq',
         'SRC' => 'integration_sources_code_seq',
+        'DST' => 'integration_destinations_code_seq',
         'EVT' => 'events_code_seq',
     ];
 

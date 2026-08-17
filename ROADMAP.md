@@ -201,3 +201,46 @@ Fora deste Sprint:
 - tabela nova de metricas;
 - Redis, filas externas ou worker continuo;
 - qualquer acao POST no dashboard.
+
+## Sprint 6.6A - Fundacao de Destinos de Integracao
+
+O Sprint 6.6A prepara a plataforma para processamento externo sem implementar transporte real.
+
+Conceitos:
+
+- `IntegrationSource`: de onde o evento entra.
+- `IntegrationDestination`: para onde o evento sera processado.
+
+A migration `006_create_integration_destinations.sql` cria `integration_destinations`, a sequence `integration_destinations_code_seq`, codigos `DST000001`, trigger de imutabilidade de `code`, `type = n8n`, `status = active/inactive`, `config JSONB` nao sensivel e o vinculo nullable `integration_sources.destination_id`.
+
+O vinculo source -> destination e sempre opcional. O service valida que fonte e destino pertencem ao mesmo tenant, impedindo `Source A -> Destination B` entre empresas. Destinos inativos nao aparecem como opcao normal para novo vinculo, mas um vinculo existente com destino inativo continua legivel.
+
+O CRUD de destinos e owner-only:
+
+```http
+GET /admin/integration-destinations
+GET /admin/integration-destinations/create
+POST /admin/integration-destinations
+GET /admin/integration-destinations/{id}
+GET /admin/integration-destinations/{id}/edit
+POST /admin/integration-destinations/{id}
+POST /admin/integration-destinations/{id}/activate
+POST /admin/integration-destinations/{id}/deactivate
+```
+
+`EventProcessorResolver` resolve `type = n8n` para `N8nEventProcessor`, mas o processador n8n e apenas placeholder. Se chamado, ele falha permanentemente com mensagem sanitizada e nao faz HTTP, cURL, webhook, consulta a credential, retry, banco ou mutacao de evento.
+
+Fora deste Sprint:
+
+- HTTP client;
+- URL de webhook;
+- token, secret, API key, bearer token ou credential vault;
+- workflow n8n real;
+- WhatsApp;
+- multiplos destinos por fonte;
+- roteamento por `event_type`;
+- fan-out;
+- circuit breaker;
+- rate limit;
+- retry HTTP real;
+- filas externas.

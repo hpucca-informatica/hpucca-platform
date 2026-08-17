@@ -186,7 +186,7 @@ final class AutomationSourcesFake implements IntegrationSourceRepositoryContract
 {
     public function paginate(string $search, ?int $tenantId, int $page, int $perPage): array
     {
-        return [new IntegrationSource(2, 'SRC000002', 1, 'Empresa A', 'active', 'Fonte A', 'fonte-a', 'hash-nao-exibido', 'active', null, '2026-08-14 00:00:00', '2026-08-14 00:00:00')];
+        return [new IntegrationSource(2, 'SRC000002', 1, 'Empresa A', 'active', 'Fonte A', 'fonte-a', 'hash-nao-exibido', 'active', null, null, null, null, null, null, '2026-08-14 00:00:00', '2026-08-14 00:00:00')];
     }
 
     public function count(string $search, ?int $tenantId): int
