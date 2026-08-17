@@ -9,8 +9,8 @@ WORKDIR /var/www/html
 COPY . .
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libpq-dev unzip \
-    && docker-php-ext-install pdo_pgsql \
+    && apt-get install -y --no-install-recommends libcurl4-openssl-dev libpq-dev unzip \
+    && docker-php-ext-install curl pdo_pgsql \
     && rm -rf /var/lib/apt/lists/* \
     && composer install --no-dev --optimize-autoloader \
     && sed -ri 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/000-default.conf /etc/apache2/apache2.conf \
