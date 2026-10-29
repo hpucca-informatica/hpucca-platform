@@ -232,6 +232,7 @@ $service = new IntegrationDestinationService(
     $repository,
     integrationDestinationCrudTenants(),
     (new ReflectionClass(PublicCodeGenerator::class))->newInstanceWithoutConstructor(),
+    new \HPucca\Platform\Services\WebhookUrlValidator('production', static fn (string $host): array => ['8.8.8.8']),
 );
 
 $_SESSION = [];

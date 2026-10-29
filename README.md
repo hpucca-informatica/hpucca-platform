@@ -731,7 +731,7 @@ Migration `006_create_integration_destinations.sql` already provides `integratio
 }
 ```
 
-`webhook_url` is required for n8n destinations. Production requires HTTPS. The URL validator rejects empty or invalid URLs, unsupported schemes, localhost, loopback, private RFC1918 IPv4 ranges, link-local addresses, `169.254.0.0/16`, `0.0.0.0`, `::1`, and URLs with userinfo such as `https://user:pass@example.com`. The protection is intentionally basic SSRF hardening and does not attempt DNS rebinding defense in this sprint.
+`webhook_url` is required for n8n destinations. Production requires HTTPS. The URL validator rejects empty or invalid URLs, unsupported schemes, localhost, loopback, private RFC1918 IPv4 ranges, link-local addresses, `169.254.0.0/16`, `0.0.0.0`, `::1`, and URLs with userinfo such as `https://user:pass@example.com`. Sprint 6.6B.1 classifies IPs by packed bytes and rejects non-public/reserved IPv4, non-global IPv6, all IPv4-mapped IPv6 and ambiguous IPv4 spellings. Both A and AAAA lookups must succeed; every returned address must be public. Empty answers or lookup errors fail closed. Immediately before transport, DNS is checked again and one approved address is pinned with CURLOPT_RESOLVE, retaining the URL hostname, SNI and TLS verification. Redirects and environment proxies are disabled. Public IP literals connect directly without DNS.
 
 `timeout_seconds` defaults to `10`, must be an integer, and must be between `1` and `30`.
 
@@ -794,3 +794,9 @@ An API key belongs to exactly one integration source, and that source belongs to
 Integration source codes use `SRC000001` from the PostgreSQL sequence `integration_sources_code_seq`. Event codes use `EVT000001` from `events_code_seq`. Both codes are immutable through PostgreSQL triggers.
 
 HMAC request signatures are documented as a future hardening step and are not implemented in Sprint 5.1.
+
+### Sprint 6.6B.1 validation and limits
+
+Run the PHP scripts with `-d zend.assertions=1 -d assert.exception=1`: `WebhookUrlValidatorTest.php`, `WebhookDnsResolutionTest.php`, `CurlHttpClientOptionsTest.php`, `CurlHttpClientTest.php`, `N8nEventProcessorTest.php`, `EventProcessorResolverTest.php`, `EventDispatcherTest.php`, and `IntegrationDestinationCrudTest.php` under `tests/`.
+
+DNS uses PHP's system resolver (`dns_get_record`) and its timeout policy, outside the cURL request timeout. A failed DNS validation is treated as a permanent configuration/delivery failure. Only one approved IP is used per attempt; no automatic multi-address failover. CNAME-only answers without terminal A/AAAA fail closed. The conservative address policy may reject special-purpose globally reachable ranges; ASCII DNS hostnames are required (convert IDNs to punycode). The local HTTP test uses a test-only adapter to route the approved address to its fixture and checks Host, proxy disabling, redirects and response limits. TLS options/SNI hostname preservation are checked at the transport boundary; an actual HTTPS certificate/SNI integration and PostgreSQL integration remain separate environment-dependent checks.

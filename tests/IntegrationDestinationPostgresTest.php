@@ -86,11 +86,19 @@ try {
     $destinationIds[] = (int) $secondDestination['id'];
     assert($secondDestination['code'] !== $firstDestination['code']);
 
+    $connection->exec('SAVEPOINT destination_code_update');
     try {
         $connection->exec("UPDATE integration_destinations SET code = 'DST999999' WHERE id = " . $destinationA);
         throw new RuntimeException('integration_destinations.code update was not rejected.');
     } catch (PDOException $exception) {
+        $connection->exec('ROLLBACK TO SAVEPOINT destination_code_update');
+        if ((string) $exception->getCode() !== 'P0001'
+            || !str_contains($exception->getMessage(), 'integration_destinations.code is immutable')) {
+            throw new RuntimeException('Unexpected SQL error in destination_code_update.', 0, $exception);
+        }
         assert(str_contains($exception->getMessage(), 'integration_destinations.code is immutable'));
+    } finally {
+        $connection->exec('RELEASE SAVEPOINT destination_code_update');
     }
 
     $connection->prepare(
@@ -104,22 +112,36 @@ try {
     assert($updatedRow['name'] === 'Destino Atualizado ' . $suffix);
     assert($updatedRow['status'] === 'inactive');
 
+    $connection->exec('SAVEPOINT duplicate_destination_slug');
     try {
         $insertDestination->execute(['tenant_id' => $tenantA, 'name' => 'Destino Duplicado ' . $suffix, 'slug' => 'destino-dois-' . $suffix, 'config' => $destinationConfig]);
         throw new RuntimeException('Duplicate tenant/slug was not rejected.');
-    } catch (PDOException) {
-        assert(true);
+    } catch (PDOException $exception) {
+        $connection->exec('ROLLBACK TO SAVEPOINT duplicate_destination_slug');
+        if ((string) $exception->getCode() !== '23505'
+            || !str_contains($exception->getMessage(), 'integration_destinations_tenant_slug_unique')) {
+            throw new RuntimeException('Unexpected SQL error in duplicate_destination_slug.', 0, $exception);
+        }
+    } finally {
+        $connection->exec('RELEASE SAVEPOINT duplicate_destination_slug');
     }
 
     $insertDestination->execute(['tenant_id' => $tenantB, 'name' => 'Destino Mesmo Slug ' . $suffix, 'slug' => 'destino-dois-' . $suffix, 'config' => $destinationConfig]);
     $sameSlugOtherTenant = $insertDestination->fetch(PDO::FETCH_ASSOC);
     $destinationIds[] = (int) $sameSlugOtherTenant['id'];
 
+    $connection->exec('SAVEPOINT invalid_destination_tenant');
     try {
         $insertDestination->execute(['tenant_id' => 999999999, 'name' => 'Destino FK ' . $suffix, 'slug' => 'destino-fk-' . $suffix, 'config' => $destinationConfig]);
         throw new RuntimeException('Invalid tenant FK was not rejected.');
-    } catch (PDOException) {
-        assert(true);
+    } catch (PDOException $exception) {
+        $connection->exec('ROLLBACK TO SAVEPOINT invalid_destination_tenant');
+        if ((string) $exception->getCode() !== '23503'
+            || !str_contains($exception->getMessage(), 'integration_destinations_tenant_id_foreign')) {
+            throw new RuntimeException('Unexpected SQL error in invalid_destination_tenant.', 0, $exception);
+        }
+    } finally {
+        $connection->exec('RELEASE SAVEPOINT invalid_destination_tenant');
     }
 
     $insertSource = $connection->prepare(
@@ -157,12 +179,19 @@ try {
     assert((int) $contextRow['destination_id'] === $destinationA);
     assert(str_contains((string) $contextRow['destination_config'], 'webhook_url'));
 
+    $connection->exec('SAVEPOINT invalid_source_destination');
     try {
         $connection->prepare('UPDATE integration_sources SET destination_id = :destination_id WHERE id = :source_id')
             ->execute(['destination_id' => 999999999, 'source_id' => $sourceId]);
         throw new RuntimeException('Invalid destination FK was not rejected.');
-    } catch (PDOException) {
-        assert(true);
+    } catch (PDOException $exception) {
+        $connection->exec('ROLLBACK TO SAVEPOINT invalid_source_destination');
+        if ((string) $exception->getCode() !== '23503'
+            || !str_contains($exception->getMessage(), 'integration_sources_destination_id_foreign')) {
+            throw new RuntimeException('Unexpected SQL error in invalid_source_destination.', 0, $exception);
+        }
+    } finally {
+        $connection->exec('RELEASE SAVEPOINT invalid_source_destination');
     }
 
     $connection->prepare('UPDATE integration_sources SET destination_id = NULL WHERE id = :source_id')

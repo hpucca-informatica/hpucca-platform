@@ -2,7 +2,28 @@
 
 declare(strict_types=1);
 
+namespace HPucca\Platform\Services {
+    function curl_setopt_array($handle, array $options): bool
+    {
+        $GLOBALS['transportOptions'] = $options;
+        assert($options[CURLOPT_PROXY] === '');
+        assert($options[CURLOPT_PRE_PROXY] === '');
+        assert($options[CURLOPT_NOPROXY] === '*');
+        assert($options[CURLOPT_SSL_VERIFYPEER] === true);
+        assert($options[CURLOPT_SSL_VERIFYHOST] === 2);
+        assert($options[CURLOPT_FOLLOWLOCATION] === false);
+        assert($options[CURLOPT_MAXREDIRS] === 0);
+        assert($options[CURLOPT_PROTOCOLS] === (CURLPROTO_HTTP | CURLPROTO_HTTPS));
+        assert(count($options[CURLOPT_RESOLVE]) === 1);
+        assert(str_ends_with($options[CURLOPT_RESOLVE][0], ':8.8.8.8'));
+        $options[CURLOPT_RESOLVE][0] = str_replace(':8.8.8.8', ':127.0.0.1', $options[CURLOPT_RESOLVE][0]);
+        return \curl_setopt_array($handle, $options);
+    }
+}
+namespace {
 use HPucca\Platform\Services\CurlHttpClient;
+use HPucca\Platform\Services\WebhookUrlValidator;
+use HPucca\Platform\Services\PermanentProcessingException;
 use HPucca\Platform\Services\HttpTransportException;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
@@ -30,13 +51,16 @@ if (!extension_loaded('curl')) {
 $server = curlHttpClientStartServer();
 
 try {
-    $client = new CurlHttpClient();
+    $originalProxy = getenv('http_proxy');
+    putenv('http_proxy=http://127.0.0.1:1');
+    $client = new CurlHttpClient(new WebhookUrlValidator('local', static fn (string $host): array => ['8.8.8.8']));
     $response = $client->postJson($server['baseUrl'] . '/ok', ['name' => 'Ana'], 2);
     assert($response->statusCode === 201);
 
     $request = json_decode((string) file_get_contents($server['requestFile']), true);
     assert(is_array($request));
     assert($request['method'] === 'POST');
+    assert(str_starts_with($request['host'], 'n8n.transport.test:'));
     assert(str_contains((string) $request['content_type'], 'application/json'));
     assert($request['body'] === '{"name":"Ana"}');
     assert(!isset($request['authorization']) || $request['authorization'] === '');
@@ -50,12 +74,13 @@ try {
     assert($redirect->body === '');
 
     try {
-        $client->postJson('http://127.0.0.1:1/unavailable', ['ok' => true], 1);
+        $client->postJson('http://n8n.transport.test:1/unavailable', ['ok' => true], 1);
         assert(false);
     } catch (HttpTransportException $exception) {
         assert($exception->getMessage() === 'HTTP transport failure.');
     }
 } finally {
+    putenv($originalProxy === false ? 'http_proxy' : 'http_proxy=' . $originalProxy);
     proc_terminate($server['process']);
     proc_close($server['process']);
     @unlink($server['router']);
@@ -81,6 +106,7 @@ if ($path === '/ok') {
     file_put_contents(%s, json_encode([
         'method' => $_SERVER['REQUEST_METHOD'] ?? '',
         'content_type' => $_SERVER['CONTENT_TYPE'] ?? '',
+        'host' => $_SERVER['HTTP_HOST'] ?? '',
         'authorization' => $_SERVER['HTTP_AUTHORIZATION'] ?? '',
         'body' => file_get_contents('php://input'),
     ], JSON_UNESCAPED_SLASHES));
@@ -113,7 +139,7 @@ PHP, var_export($requestFile, true)));
         throw new RuntimeException('Unable to start local HTTP test server.');
     }
 
-    $baseUrl = 'http://127.0.0.1:' . $port;
+    $baseUrl = 'http://n8n.transport.test:' . $port;
     $deadline = microtime(true) + 5;
     do {
         $socket = @fsockopen('127.0.0.1', $port);
@@ -149,4 +175,21 @@ function curlHttpClientFreePort(): int
     fclose($socket);
 
     return (int) substr((string) $name, strrpos((string) $name, ':') + 1);
+}
+
+// A changed DNS answer must be rejected by the actual transport, even after
+// an earlier validation succeeded. No local fixture or HTTP call is involved.
+$queries = 0;
+$validator = new WebhookUrlValidator('production', static function (string $host) use (&$queries): array {
+    return ++$queries === 1 ? ['8.8.8.8'] : ['127.0.0.1'];
+});
+assert($validator->isValid('https://n8n.test/webhook'));
+$GLOBALS['transportOptions'] = null;
+try {
+    (new CurlHttpClient($validator))->postJson('https://n8n.test/webhook', [], 1);
+    assert(false);
+} catch (PermanentProcessingException) {
+    assert($GLOBALS['transportOptions'] === null);
+}
+echo 'CurlHttpClientTest SSRF regressions passed.' . PHP_EOL;
 }
