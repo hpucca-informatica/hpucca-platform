@@ -82,7 +82,7 @@ function n8nEvent(
 
 function n8nProcessor(FakeN8nHttpClient $client): N8nEventProcessor
 {
-    return new N8nEventProcessor($client, new WebhookUrlValidator('production'));
+    return new N8nEventProcessor($client, new WebhookUrlValidator('production', static fn (string $host): array => ['8.8.8.8']));
 }
 
 foreach ([200, 201, 204] as $statusCode) {

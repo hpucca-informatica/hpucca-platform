@@ -18,6 +18,7 @@ final readonly class IntegrationDestinationService
         private IntegrationDestinationRepositoryContract $destinations,
         private TenantRepository $tenants,
         private PublicCodeGenerator $codes,
+        private ?WebhookUrlValidator $urlValidator = null,
     ) {
     }
 
@@ -162,7 +163,7 @@ final readonly class IntegrationDestinationService
 
             if ($webhookUrl === '') {
                 $errors['webhook_url'] = 'Informe a URL do webhook.';
-            } elseif (!(new WebhookUrlValidator((string) Config::get('app.env', 'local')))->isValid($webhookUrl)) {
+            } elseif (!($this->urlValidator ?? new WebhookUrlValidator((string) Config::get('app.env', 'local')))->isValid($webhookUrl)) {
                 $errors['webhook_url'] = 'Informe uma URL externa segura para o webhook.';
             }
 

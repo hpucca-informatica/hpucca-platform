@@ -578,7 +578,7 @@ $n8nSuccessRepository = new EventDispatcherMemoryRepository();
 $n8nSuccessRepository->events = [26 => dispatcherN8nEvent(26)];
 $n8nSuccessDispatcher = new EventDispatcher(
     $n8nSuccessRepository,
-    new ResolvedEventProcessor(new EventProcessorResolver(new N8nEventProcessor(new DispatcherFakeHttpClient(200), new WebhookUrlValidator('production')))),
+    new ResolvedEventProcessor(new EventProcessorResolver(new N8nEventProcessor(new DispatcherFakeHttpClient(200), new WebhookUrlValidator('production', static fn (string $host): array => ['8.8.8.8'])))),
     new RetryPolicy(3, [60, 300]),
 );
 $n8nSuccess = $n8nSuccessDispatcher->dispatchOnce();
@@ -590,7 +590,7 @@ $n8nTransientRepository = new EventDispatcherMemoryRepository();
 $n8nTransientRepository->events = [27 => dispatcherN8nEvent(27)];
 $n8nTransientDispatcher = new EventDispatcher(
     $n8nTransientRepository,
-    new ResolvedEventProcessor(new EventProcessorResolver(new N8nEventProcessor(new DispatcherFakeHttpClient(503), new WebhookUrlValidator('production')))),
+    new ResolvedEventProcessor(new EventProcessorResolver(new N8nEventProcessor(new DispatcherFakeHttpClient(503), new WebhookUrlValidator('production', static fn (string $host): array => ['8.8.8.8'])))),
     new RetryPolicy(3, [60, 300]),
 );
 $n8nTransient = $n8nTransientDispatcher->dispatchOnce();
@@ -603,7 +603,7 @@ $n8nPermanentRepository = new EventDispatcherMemoryRepository();
 $n8nPermanentRepository->events = [28 => dispatcherN8nEvent(28)];
 $n8nPermanentDispatcher = new EventDispatcher(
     $n8nPermanentRepository,
-    new ResolvedEventProcessor(new EventProcessorResolver(new N8nEventProcessor(new DispatcherFakeHttpClient(404), new WebhookUrlValidator('production')))),
+    new ResolvedEventProcessor(new EventProcessorResolver(new N8nEventProcessor(new DispatcherFakeHttpClient(404), new WebhookUrlValidator('production', static fn (string $host): array => ['8.8.8.8'])))),
     new RetryPolicy(3, [60, 300]),
 );
 $n8nPermanent = $n8nPermanentDispatcher->dispatchOnce();

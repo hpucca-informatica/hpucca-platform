@@ -258,7 +258,7 @@ Config n8n nao sensivel:
 }
 ```
 
-`webhook_url` e obrigatorio. Em `APP_ENV=production`, HTTPS e obrigatorio. A validacao SSRF basica rejeita localhost, loopback, IPs privados RFC1918, link-local, `169.254.0.0/16`, `0.0.0.0`, `::1`, host vazio, URL invalida, esquemas nao HTTP(S) e userinfo (`https://user:pass@host`). DNS rebinding fica documentado como limitacao fora deste sprint.
+`webhook_url` e obrigatorio. Em `APP_ENV=production`, HTTPS e obrigatorio. A validacao SSRF basica rejeita localhost, loopback, IPs privados RFC1918, link-local, `169.254.0.0/16`, `0.0.0.0`, `::1`, host vazio, URL invalida, esquemas nao HTTP(S) e userinfo (`https://user:pass@host`). O hardening 6.6B.1 valida todos os A/AAAA por bytes e fixa um IP aprovado no cURL, preservando hostname e TLS; redirects e proxies de ambiente ficam desabilitados. Consulte README para limites operacionais e testes.
 
 `timeout_seconds` e inteiro, default `10`, minimo `1` e maximo `30`.
 
